@@ -6,11 +6,13 @@ import "./globals.css"
 import { GlassBackground } from "@/components/glass-background"
 import { SidebarProvider } from "@/components/sidebar-provider"
 import { createClient } from "@/lib/supabase/server"
+import { getURL } from "@/lib/utils"
 
 const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
+  metadataBase: new URL(getURL()),
   title: "DevBoard",
   description: "Created by Excel F&S team",
   generator: "E-FS",

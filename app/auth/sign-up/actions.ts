@@ -1,6 +1,7 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
+import { getURL } from "@/lib/utils"
 
 export async function signUpWithEmail(
   username: string,
@@ -14,9 +15,7 @@ export async function signUpWithEmail(
       email,
       password,
       options: {
-        emailRedirectTo:
-          process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
-          `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/dashboard`,
+        emailRedirectTo: `${getURL()}dashboard`,
         data: {
           username,
         },
@@ -40,9 +39,7 @@ export async function signUpWithGmail() {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${
-          process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-        }/auth/callback?flow=signup`,
+        redirectTo: `${getURL()}auth/callback?flow=signup`,
         queryParams: {
           access_type: "offline",
           prompt: "consent",
@@ -67,9 +64,7 @@ export async function signUpWithGithub() {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "github",
       options: {
-        redirectTo: `${
-          process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-        }/auth/callback?flow=signup`,
+        redirectTo: `${getURL()}auth/callback?flow=signup`,
       },
     })
 

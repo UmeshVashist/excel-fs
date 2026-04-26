@@ -214,7 +214,7 @@ export default function SettingsPage() {
             <Button
               type="submit"
               disabled={isLoading}
-              className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 transition-all hover:shadow-lg hover:shadow-blue-600 border border-blue-500 text-blue-500 hover:text-blue-500"
+              className="bg-slate-950/20 text-blue-400 border border-blue-500/50 hover:bg-blue-500/20 hover:border-blue-500 backdrop-blur-sm transition-all hover:shadow-lg hover:shadow-blue-600/50"
             >
               {isLoading ? "Updating..." : "Update Profile"}
             </Button>
@@ -271,27 +271,11 @@ export default function SettingsPage() {
             <Button
               type="submit"
               disabled={isLoading}
-              className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 transition-all hover:shadow-lg hover:shadow-blue-600 border border-blue-500 text-blue-500 hover:text-blue-500"
+              className="bg-slate-950/20 text-blue-400 border border-blue-500/50 hover:bg-blue-500/20 hover:border-blue-500 backdrop-blur-sm transition-all hover:shadow-lg hover:shadow-blue-600/50"
             >
               {isLoading ? "Updating..." : "Update Password"}
             </Button>
           </form>
-        </CardContent>
-      </Card>
-
-      <Card className="bg-white/5 border border-white/10 rounded-lg backdrop-blur-2xl transition-all hover:shadow-lg hover:shadow-white/10">
-        <CardHeader>
-          <CardTitle className="text-blue-400">Fingerprint Authentication</CardTitle>
-          <CardDescription className="text-slate-400">Manage your fingerprint biometric authentication</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-slate-300 mb-4">Enroll and manage your registered fingerprints for biometric login.</p>
-          <Button
-            onClick={() => window.location.href = '/fingerprint/manage'}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            Manage Fingerprints
-          </Button>
         </CardContent>
       </Card>
 
@@ -312,7 +296,7 @@ export default function SettingsPage() {
           <Button
             onClick={handleDeleteAccount}
             disabled={isLoading}
-            className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 transition-all hover:shadow-lg hover:shadow-red-600 border border-red-500 text-red-500 hover:text-red-500"
+            className="bg-slate-950/20 text-red-500 border border-red-500/50 hover:bg-red-500/20 hover:border-red-500 backdrop-blur-sm transition-all hover:shadow-lg hover:shadow-red-600/50"
           >
             {isLoading ? "Deleting..." : "Delete Account"}
           </Button>

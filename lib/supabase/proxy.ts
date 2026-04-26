@@ -43,15 +43,24 @@ export async function updateSession(request: NextRequest) {
       const now = Date.now()
 
       if (now - lastActivityTime > timeoutLimit) {
-        // Explicitly clear the session and activity cookies
+        // Sign out to clear Supabase cookies
+        await supabase.auth.signOut()
+
         const url = request.nextUrl.clone()
         url.pathname = "/auth/login"
         url.searchParams.set("timeout", "true")
 
         const response = NextResponse.redirect(url)
+        
+        // Ensure all cookies from the signOut are transferred to the redirect response
+        supabaseResponse.cookies.getAll().forEach((cookie) => {
+          response.cookies.set(cookie.name, cookie.value, {
+            ...cookie,
+            // Ensure options are preserved if possible, though getAll doesn't provide them all
+          })
+        })
+        
         response.cookies.delete("last_activity")
-        // Supabase SSR cookies are handled by setAll, but we should clear them here if possible
-        // since we are redirecting away from a state that thinks it has a user.
         return response
       }
     }

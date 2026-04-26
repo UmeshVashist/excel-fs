@@ -1,17 +1,13 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
+import { checkOAuthUser } from "@/lib/supabase/oauth-middleware"
 import { DashboardClient } from "./dashboard-client"
 
 export default async function DashboardPage() {
+  // Verify user is authenticated with OAuth (Gmail or GitHub)
+  const { user } = await checkOAuthUser()
+
   const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect("/auth/login")
-  }
 
   // Fetching initial counts for all categories
   const [formulasRes, shortcutsRes, notesRes, urlsRes, todosRes] = await Promise.all([

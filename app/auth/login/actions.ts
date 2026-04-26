@@ -1,6 +1,7 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
+import { createServiceRoleClient } from "@/lib/supabase/service-role"
 
 export async function loginAction(identifier: string, password: string) {
   const supabase = await createClient()
@@ -13,7 +14,13 @@ export async function loginAction(identifier: string, password: string) {
 
   // If email login fails, try to find user by username in profiles table
   if (loginResult.error) {
-    const { data: profile } = await supabase.from("profiles").select("email").eq("username", identifier).single()
+    // Use service role client to bypass RLS for username lookup
+    const serviceClient = createServiceRoleClient()
+    const { data: profile } = await serviceClient
+      .from("profiles")
+      .select("email")
+      .ilike("username", identifier)
+      .maybeSingle()
 
     if (profile?.email) {
       loginResult = await supabase.auth.signInWithPassword({
@@ -45,4 +52,38 @@ export async function loginAction(identifier: string, password: string) {
   }
 
   return { success: true }
+}
+
+export async function loginWithGmail() {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/auth/callback`,
+    },
+  })
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  return { url: data?.url }
+}
+
+export async function loginWithGithub() {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "github",
+    options: {
+      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/auth/callback`,
+    },
+  })
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  return { url: data?.url }
 }

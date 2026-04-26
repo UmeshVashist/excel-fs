@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -12,6 +12,7 @@ import { ShortcutList } from "@/components/shortcut-list"
 import { NotesList } from "@/components/notes-list"
 import { UrlsList } from "@/components/urls-list"
 import { SearchingLoader } from "@/components/searching-loader"
+import { SetupAccountPopup } from "@/components/setup-account-popup"
 
 export function DashboardClient({
   initialFormulasCount,
@@ -38,10 +39,42 @@ export function DashboardClient({
     todos: [],
   })
   const [isLoading, setIsLoading] = useState(false)
+  const [isSetupPopupOpen, setIsSetupPopupOpen] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
 
   const supabase = createClient()
   const router = useRouter()
+  const searchParams = useSearchParams()
 
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
+  useEffect(() => {
+    const checkSetup = async () => {
+      if (searchParams.get("new_user") === "true") {
+        setIsSetupPopupOpen(true)
+        // Remove the query param without refreshing the page
+        const url = new URL(window.location.href)
+        url.searchParams.delete("new_user")
+        window.history.replaceState({}, "", url.toString())
+        return
+      }
+
+      // Also check if password_set is false for the current user
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("password_set")
+        .eq("id", userId)
+        .maybeSingle()
+      
+      if (profile && profile.password_set === false) {
+        setIsSetupPopupOpen(true)
+      }
+    }
+
+    checkSetup()
+  }, [searchParams, supabase, userId])
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults({ formulas: [], shortcuts: [], notes: [], urls: [], todos: [] })
@@ -159,7 +192,7 @@ export function DashboardClient({
         </div>
       </div>
 
-      <Card className="border text-center border-cyan-500 bg-white/5 rounded-lg backdrop-blur-2xl transition-all hover:shadow-lg hover:shadow-white/10">
+      <Card className="border text-center  bg-white/5 rounded-lg backdrop-blur-2xl transition-all hover:shadow-lg hover:shadow-white/10">
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
@@ -169,34 +202,36 @@ export function DashboardClient({
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search across all your data by title..."
                 autoComplete="off"
-                className="pl-10 bg-slate-950/20 border-orange-500 text-white"
+                className="pl-10 bg-slate-950/20 text-white"
               />
             </div>
-            <Select value={searchCategory} onValueChange={setSearchCategory}>
-              <SelectTrigger className="w-full sm:w-[200px] bg-slate-950/20 border-orange-500 text-white hover:cursor-pointer">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-slate-950/40 border-cyan-500 backdrop-blur-sm">
-                <SelectItem value="all" className="text-cyan-500 hover:cursor-pointer">
-                  All
-                </SelectItem>
-                <SelectItem value="notes" className="text-white hover:cursor-pointer">
-                  Notes
-                </SelectItem>
-                <SelectItem value="urls" className="text-white hover:cursor-pointer">
-                  URLs
-                </SelectItem>
-                <SelectItem value="todos" className="text-white hover:cursor-pointer">
-                  Todos
-                </SelectItem>
-                <SelectItem value="formulas" className="text-white hover:cursor-pointer">
-                  Formulas
-                </SelectItem>
-                <SelectItem value="shortcuts" className="text-white hover:cursor-pointer">
-                  Shortcuts
-                </SelectItem>
-              </SelectContent>
-            </Select>
+            {isMounted && (
+              <Select value={searchCategory} onValueChange={setSearchCategory}>
+                <SelectTrigger className="w-full sm:w-[200px] bg-slate-950/20  text-white hover:cursor-pointer">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-950/40 border-cyan-500 backdrop-blur-sm">
+                  <SelectItem value="all" className="text-cyan-500 hover:cursor-pointer">
+                    All
+                  </SelectItem>
+                  <SelectItem value="notes" className="text-white hover:cursor-pointer">
+                    Notes
+                  </SelectItem>
+                  <SelectItem value="urls" className="text-white hover:cursor-pointer">
+                    URLs
+                  </SelectItem>
+                  <SelectItem value="todos" className="text-white hover:cursor-pointer">
+                    Todos
+                  </SelectItem>
+                  <SelectItem value="formulas" className="text-white hover:cursor-pointer">
+                    Formulas
+                  </SelectItem>
+                  <SelectItem value="shortcuts" className="text-white hover:cursor-pointer">
+                    Shortcuts
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -261,6 +296,11 @@ export function DashboardClient({
             )}
         </div>
       )}
+
+      <SetupAccountPopup
+        isOpen={isSetupPopupOpen}
+        onClose={() => setIsSetupPopupOpen(false)}
+      />
     </div>
   )
 }

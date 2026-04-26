@@ -117,7 +117,7 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply outline-ring/50;
   }
   body {
     /* Applied requested global background gradient */
@@ -141,7 +141,7 @@
   width: 100%;
   position: relative;
   height: 2.5em;
-  border: 3px ridge;
+  border: none !important;
   outline: none;
   background-color: transparent;
   color: white;
@@ -163,7 +163,7 @@
   left: 3%;
   width: 95%;
   height: 40%;
-  background-color: #212121;
+  background-color: transparent;
   transition: 0.5s;
   transform-origin: center;
   opacity: 0;
@@ -177,7 +177,7 @@
   left: 3%;
   width: 95%;
   height: 40%;
-  background-color: #212121;
+  background-color: transparent;
   transition: 0.5s;
   opacity: 0;
 }
@@ -190,29 +190,32 @@
 
 /* Blue variant (Login button) */
 .btn-custom-blue {
-  border-color: #149CEA;
+  background-color: rgba(20, 156, 234, 0.1);
 }
 
 .btn-custom-blue:hover {
   box-shadow: inset 0px 0px 25px #1479EA;
+  background-color: rgba(20, 156, 234, 0.2);
 }
 
 /* Red variant (Forgot Password button) */
 .btn-custom-red {
-  border-color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.1);
 }
 
 .btn-custom-red:hover {
   box-shadow: inset 0px 0px 25px #ef4444;
+  background-color: rgba(239, 68, 68, 0.2);
 }
 
 /* Green variant (Create Account button) */
 .btn-custom-green {
-  border-color: #22c55e;
+  background-color: rgba(34, 197, 94, 0.1);
 }
 
 .btn-custom-green:hover {
   box-shadow: inset 0px 0px 25px #22c55e;
+  background-color: rgba(34, 197, 94, 0.2);
 }
 
 /* Loading Icon Animation from Uiverse.io by dexter-st */

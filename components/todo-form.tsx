@@ -132,7 +132,7 @@ export function TodoForm({
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   autoComplete="off"
-                  className="bg-slate-900/50 border-slate-700 text-white"
+                  className="bg-slate-900/50 border-slate-700 text-white resize-none overflow-y-auto h-32 !field-sizing-fixed"
                   rows={4}
                 />
               </div>

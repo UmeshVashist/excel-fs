@@ -11,6 +11,7 @@ interface Todo {
   id: string
   title: string
   description: string | null
+  remark?: string | null
   status: "pending" | "in-progress" | "complete"
   is_favorite: boolean
   created_at: string
@@ -133,6 +134,12 @@ export function TodoItem({
           >
             {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
           </Button>
+        </div>
+      )}
+      {todo.remark && (
+        <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+          <p className="text-xs font-semibold text-blue-400 uppercase tracking-wider mb-1">Remark</p>
+          <p className="text-slate-200 text-sm whitespace-pre-wrap break-words">{todo.remark}</p>
         </div>
       )}
     </div>

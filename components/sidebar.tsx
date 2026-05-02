@@ -177,9 +177,9 @@ export function Sidebar({ user }: { user?: any }) {
               <DropdownMenuSeparator className="bg-slate-800" />
               <DropdownMenuItem 
                 onClick={() => openModal("danger")}
-                className="focus:bg-red-500/10 focus:text-red-400 cursor-pointer gap-2 text-red-500"
+                className="focus:bg-red-500/10 focus:text-white cursor-pointer gap-2 "
               >
-                <AlertTriangle className="h-4 w-4" />
+                <AlertTriangle className="h-4 w-4 text-red-500" />
                 Danger Zone
               </DropdownMenuItem>
             </DropdownMenuContent>

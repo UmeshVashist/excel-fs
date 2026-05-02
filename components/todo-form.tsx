@@ -13,11 +13,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { LoadingIcon } from "@/components/loading-icon"
+import { cn } from "@/lib/utils"
 
 interface Todo {
   id?: string
   title: string
   description: string | null
+  remark?: string | null
   status: "pending" | "in-progress" | "complete"
   is_favorite: boolean
 }
@@ -37,6 +39,7 @@ export function TodoForm({
 }) {
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
+  const [remark, setRemark] = useState("")
   const [status, setStatus] = useState<"pending" | "in-progress" | "complete">("pending")
   const [isFavorite, setIsFavorite] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -48,11 +51,13 @@ export function TodoForm({
     if (todo) {
       setTitle(todo.title)
       setDescription(todo.description || "")
+      setRemark(todo.remark || "")
       setStatus(todo.status)
       setIsFavorite(todo.is_favorite)
     } else {
       setTitle("")
       setDescription("")
+      setRemark("")
       setStatus("pending")
       setIsFavorite(false)
     }
@@ -60,6 +65,13 @@ export function TodoForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Remark is required when status is "in-progress" or "complete"
+    if ((status === "in-progress" || status === "complete") && !remark.trim()) {
+      alert(`Remark is required when a Todo is ${status === "in-progress" ? "In Progress" : "Completed"}.`)
+      return
+    }
+
     setIsLoading(true)
 
     try {
@@ -70,6 +82,7 @@ export function TodoForm({
           .update({
             title,
             description: description || null,
+            remark: remark || null,
             status,
             is_favorite: isFavorite,
             updated_at: new Date().toISOString(),
@@ -81,6 +94,7 @@ export function TodoForm({
           user_id: userId,
           title,
           description: description || null,
+          remark: remark || null,
           status,
           is_favorite: isFavorite,
         })
@@ -88,6 +102,7 @@ export function TodoForm({
 
       setTitle("")
       setDescription("")
+      setRemark("")
       setStatus("pending")
       setIsFavorite(false)
 
@@ -149,6 +164,26 @@ export function TodoForm({
                   </SelectContent>
                 </Select>
               </div>
+              
+              {(status === "in-progress" || status === "complete") && (
+                <div className="space-y-2">
+                  <Label htmlFor="remark" className="text-orange-400">
+                    Remark <span className="text-red-500 font-bold">*</span>
+                  </Label>
+                  <Input
+                    id="remark"
+                    value={remark}
+                    onChange={(e) => setRemark(e.target.value)}
+                    placeholder={`Enter ${status === "in-progress" ? "progress" : "completion"} remark (Required)`}
+                    autoComplete="off"
+                    className={cn(
+                      "bg-slate-900/50 border-slate-700 text-white",
+                      !remark.trim() && "border-red-500/50 focus:border-red-500"
+                    )}
+                  />
+                </div>
+              )}
+
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="favorite"

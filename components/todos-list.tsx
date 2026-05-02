@@ -16,6 +16,7 @@ interface Todo {
   id: string
   title: string
   description: string | null
+  remark?: string | null
   status: "pending" | "in-progress" | "complete"
   is_favorite: boolean
   created_at: string

@@ -5,6 +5,7 @@ import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 import { GlassBackground } from "@/components/glass-background"
 import { SidebarProvider } from "@/components/sidebar-provider"
+import { AuthMonitor } from "@/components/auth-monitor"
 import { createClient } from "@/lib/supabase/server"
 import { getURL } from "@/lib/utils"
 
@@ -42,6 +43,7 @@ export default async function RootLayout({
     <html lang="en">
       <body className="font-sans antialiased min-h-screen">
         <GlassBackground>
+          <AuthMonitor />
           <SidebarProvider user={user}>{children}</SidebarProvider>
         </GlassBackground>
         <Analytics />

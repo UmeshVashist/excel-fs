@@ -84,27 +84,27 @@ export function UrlsList({
       {urls.map((url) => (
         <Card key={url.id} className="bg-white/5 border border-white/10 rounded-lg backdrop-blur-2xl transition-all hover:shadow-lg hover:shadow-white/10">
           <CardHeader>
-            <div className="flex items-start justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
               <div className="flex-1">
-                <CardTitle className="text-white flex items-center gap-2">
+                <CardTitle className="text-white flex items-center gap-2 flex-wrap">
                   {url.title}
-                  {url.is_favorite && <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />}
+                  {url.is_favorite && <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 shrink-0" />}
                 </CardTitle>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 shrink-0 flex-wrap">
                 <Button
                   size="icon"
                   variant="ghost"
                   onClick={() => handleToggleFavorite(url.id, url.is_favorite)}
-                  className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-yellow-500 hover:text-yellow-500 hover:border hover:border-yellow-500"
+                  className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-yellow-500 hover:text-yellow-500 hover:border hover:border-yellow-500 h-9 w-9"
                 >
-                  <Star className={url.is_favorite ? "fill-yellow-400 text-yellow-400" : ""} />
+                  <Star className={url.is_favorite ? "fill-yellow-400 text-yellow-400 h-4 w-4" : "h-4 w-4"} />
                 </Button>
                 <Button
                   size="icon"
                   variant="ghost"
                   onClick={() => togglePasswordVisibility(url.id)}
-                  className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-violet-700 hover:text-violet-700 hover:border hover:border-violet-700"
+                  className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-violet-700 hover:text-violet-700 hover:border hover:border-violet-700 h-9 w-9"
                 >
                   {visiblePasswords.has(url.id) ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
@@ -112,7 +112,7 @@ export function UrlsList({
                   size="icon"
                   variant="ghost"
                   onClick={() => onEdit(url)}
-                  className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-blue-500 hover:text-blue-500 hover:border hover:border-blue-500"
+                  className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-blue-500 hover:text-blue-500 hover:border hover:border-blue-500 h-9 w-9"
                 >
                   <Edit className="h-4 w-4" />
                 </Button>
@@ -120,7 +120,7 @@ export function UrlsList({
                   size="icon"
                   variant="ghost"
                   onClick={() => handleDelete(url.id)}
-                  className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-red-500 hover:text-red-500 hover:border hover:border-red-500"
+                  className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-red-500 hover:text-red-500 hover:border hover:border-red-500 h-9 w-9"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -151,7 +151,7 @@ export function UrlsList({
                     size="icon"
                     variant="ghost"
                     onClick={() => handleCopy(url.id, url.username || "", "username")}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 hover:border hover:border-blue-500 text-blue-500 hover:text-blue-500 h-8 w-8 opacity-0 group-hover:opacity-100 transition-all"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 hover:border hover:border-blue-500 text-blue-500 hover:text-blue-500 h-8 w-8 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
                   >
                     {copiedId === url.id && copiedField === "username" ? (
                       <Check className="h-4 w-4 text-green-400 border border-green-500" />
@@ -174,7 +174,7 @@ export function UrlsList({
                     size="icon"
                     variant="ghost"
                     onClick={() => handleCopy(url.id, url.password || "", "password")}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 hover:border hover:border-blue-500 text-blue-500 hover:text-blue-500 h-8 w-8 opacity-0 group-hover:opacity-100 transition-all"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 hover:border hover:border-blue-500 text-blue-500 hover:text-blue-500 h-8 w-8 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
                   >
                     {copiedId === url.id && copiedField === "password" ? (
                       <Check className="h-4 w-4 text-green-400 border border-green-500" />

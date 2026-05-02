@@ -77,60 +77,61 @@ export function TodoItem({
   }
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-lg p-6 backdrop-blur-2xl transition-all hover:shadow-lg hover:shadow-white/10">
-      <div className="flex items-start justify-between mb-4">
+    <div className="bg-white/5 border border-white/10 rounded-lg p-4 sm:p-6 backdrop-blur-2xl transition-all hover:shadow-lg hover:shadow-white/10">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4">
         <div className="flex-1">
-          <h3 className="text-xl font-semibold text-white mb-2">{todo.title}</h3>
+          <h3 className="text-xl font-semibold text-white mb-2 break-words">{todo.title}</h3>
           <div
             className={cn(
-              "inline-block px-3 py-1 rounded-full text-sm font-medium border",
+              "inline-block px-3 py-1 rounded-full text-sm font-medium border shrink-0",
               getStatusColor(todo.status),
             )}
           >
             {getStatusLabel(todo.status)}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0 flex-wrap">
           <Button
             variant="ghost"
             size="icon"
             onClick={handleFavoriteToggle}
             className={cn(
-              "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 hover:border hover:border-yellow-600 transition-all",
+              "h-9 w-9 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 hover:border hover:border-yellow-600 transition-all",
               isFavorite ? "text-yellow-500 hover:text-yellow-600" : "text-yellow-500 hover:text-yellow-500",
             )}
           >
-            <Star className={cn("h-5 w-5", isFavorite && "fill-yellow-500")} />
+            <Star className={cn("h-4 w-4", isFavorite && "fill-current")} />
           </Button>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => onEdit(todo)}
-            className="text-blue-500 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-blue-500 hover:text-blue-500 hover:border hover:border-blue-500 transition-all"
+            className="h-9 w-9 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-blue-500 hover:text-blue-600 hover:border hover:border-blue-600 transition-all"
           >
-            <Edit2 className="h-5 w-5" />
+            <Edit2 className="h-4 w-4" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
             onClick={handleDelete}
-            className="text-red-500 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-red-500 hover:text-red-500 hover:border hover:border-red-500 transition-all"
+            className="h-9 w-9 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-red-500 hover:text-red-600 hover:border hover:border-red-600 transition-all"
           >
-            <Trash2 className="h-5 w-5" />
+            <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       </div>
-
       {todo.description && (
         <div className="relative group">
-          <p className="text-slate-200 bg-white/5 p-4 rounded border border-white/10 backdrop-blur-xl\">{todo.description}</p>
+          <div className="bg-white/5 border border-white/10 rounded p-3 pr-12 text-slate-300 text-sm whitespace-pre-wrap break-words">
+            {todo.description}
+          </div>
           <Button
             variant="ghost"
             size="icon"
             onClick={handleCopy}
-            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 hover:border hover:border-blue-500 text-blue-500 hover:text-blue-500"
+            className="absolute right-2 top-2 h-8 w-8 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-cyan-500 hover:text-cyan-600 hover:border hover:border-cyan-600 transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
           >
-            {copied ? <Check className="h-4 w-4 text-green-500  border border-green-500" /> : <Copy className="h-4 w-4" />}
+            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
           </Button>
         </div>
       )}

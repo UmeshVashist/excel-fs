@@ -6,14 +6,17 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function getURL() {
+  // If we are in production (Vercel), always use the main domain to avoid redirect_uri mismatches
+  if (process.env.NODE_ENV === "production" || process.env.VERCEL === "1") {
+    return "https://devboard-ms.vercel.app/";
+  }
+
+  // Local development logic
   let url =
     process?.env?.NEXT_PUBLIC_APP_URL ??
-    process?.env?.NEXT_PUBLIC_VERCEL_URL ?? // Automatically set by Vercel.
-    "https://devboard-ms.vercel.app/"; // Hardcoded fallback for the user's domain
+    "http://localhost:3000/";
   
-  // Make sure to include `https://` when not localhost.
   url = url.includes("http") ? url : `https://${url}`;
-  // Make sure to include a trailing `/`.
-  url = url.charAt(url.length - 1) === "/" ? url : `${url}/`;
-  return url;
+  url = url.replace(/\/+$/, ""); 
+  return `${url}/`;
 }

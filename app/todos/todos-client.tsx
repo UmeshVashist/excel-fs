@@ -70,89 +70,87 @@ export function TodosClient({
   })
 
   return (
-    <SidebarProvider user={user}>
-      <div className="w-full max-w-7xl mx-auto space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-orange-500 mb-2">Todos</h1>
-            <p className="text-cyan-500">Manage your tasks and track progress</p>
-          </div>
-          <Button
-            onClick={() => setIsFormOpen(true)}
-            className="w-full md:w-auto bg-slate-950/20 text-blue-400 border border-blue-500/50 hover:bg-blue-500/20 hover:border-blue-500 backdrop-blur-sm transition-all hover:shadow-lg hover:shadow-blue-600/50"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Todo
-          </Button>
+    <div className="w-full max-w-7xl mx-auto space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-orange-500 mb-2">Todos</h1>
+          <p className="text-cyan-500">Manage your tasks and track progress</p>
         </div>
-
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <Input
-              placeholder="Search todos by title..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              autoComplete="off"
-              className="pl-10 bg-slate-900/50 border-slate-700 text-white"
-            />
-          </div>
-          <Select value={favoriteFilter} onValueChange={setFavoriteFilter}>
-            <SelectTrigger className="w-full sm:w-[180px] bg-slate-900/50 border-slate-700 text-white">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-slate-800 border-slate-700">
-              <SelectItem value="all" className="text-white">
-                All Todos
-              </SelectItem>
-              <SelectItem value="favorite" className="text-white">
-                Favorites
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-[180px] bg-slate-900/50 border-slate-700 text-white">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-slate-800 border-slate-700">
-              <SelectItem value="all" className="text-white">
-                All
-              </SelectItem>
-              <SelectItem value="pending" className="text-white">
-                Pending
-              </SelectItem>
-              <SelectItem value="in-progress" className="text-white">
-                In Progress
-              </SelectItem>
-              <SelectItem value="complete" className="text-white">
-                Complete
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-4">
-          {filteredTodos.length === 0 ? (
-            <div className="text-center py-12 text-slate-400">
-              {searchQuery || favoriteFilter !== "all" || statusFilter !== "all"
-                ? "No todos found matching your filters"
-                : "No todos found. Add your first todo to get started!"}
-            </div>
-          ) : (
-            filteredTodos.map((todo) => (
-              <TodoItem key={todo.id} todo={todo} onEdit={handleEdit} onUpdate={() => mutate()} />
-            ))
-          )}
-        </div>
-
-        <TodoForm
-          open={isFormOpen}
-          onOpenChange={handleCloseForm}
-          todo={editingTodo}
-          userId={userId}
-          onUpdate={() => mutate()}
-        />
+        <Button
+          onClick={() => setIsFormOpen(true)}
+          className="w-full md:w-auto bg-slate-950/20 text-blue-400 border border-blue-500/50 hover:bg-blue-500/20 hover:border-blue-500 backdrop-blur-sm transition-all hover:shadow-lg hover:shadow-blue-600/50"
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Add Todo
+        </Button>
       </div>
-    </SidebarProvider>
+
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Input
+            placeholder="Search todos by title..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            autoComplete="off"
+            className="pl-10 bg-slate-900/50 border-slate-700 text-white"
+          />
+        </div>
+        <Select value={favoriteFilter} onValueChange={setFavoriteFilter}>
+          <SelectTrigger className="w-full sm:w-[180px] bg-slate-900/50 border-slate-700 text-white">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="bg-slate-800 border-slate-700">
+            <SelectItem value="all" className="text-white">
+              All Todos
+            </SelectItem>
+            <SelectItem value="favorite" className="text-white">
+              Favorites
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-full sm:w-[180px] bg-slate-900/50 border-slate-700 text-white">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="bg-slate-800 border-slate-700">
+            <SelectItem value="all" className="text-white">
+              All
+            </SelectItem>
+            <SelectItem value="pending" className="text-white">
+              Pending
+            </SelectItem>
+            <SelectItem value="in-progress" className="text-white">
+              In Progress
+            </SelectItem>
+            <SelectItem value="complete" className="text-white">
+              Complete
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-4">
+        {filteredTodos.length === 0 ? (
+          <div className="text-center py-12 text-slate-400">
+            {searchQuery || favoriteFilter !== "all" || statusFilter !== "all"
+              ? "No todos found matching your filters"
+              : "No todos found. Add your first todo to get started!"}
+          </div>
+        ) : (
+          filteredTodos.map((todo) => (
+            <TodoItem key={todo.id} todo={todo} onEdit={handleEdit} onUpdate={() => mutate()} />
+          ))
+        )}
+      </div>
+
+      <TodoForm
+        open={isFormOpen}
+        onOpenChange={handleCloseForm}
+        todo={editingTodo}
+        userId={userId}
+        onUpdate={() => mutate()}
+      />
+    </div>
   )
 }

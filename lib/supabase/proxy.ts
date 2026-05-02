@@ -34,9 +34,9 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (user && !request.nextUrl.pathname.startsWith("/auth")) {
-    const lastActivity = request.cookies.get("last_activity")?.value
+  const lastActivity = request.cookies.get("last_activity")?.value
 
+  if (user && !request.nextUrl.pathname.startsWith("/auth")) {
     if (lastActivity) {
       const lastActivityTime = Number.parseInt(lastActivity)
       const timeoutLimit = 30 * 60 * 1000 // 30 minutes
@@ -56,21 +56,30 @@ export async function updateSession(request: NextRequest) {
         supabaseResponse.cookies.getAll().forEach((cookie) => {
           response.cookies.set(cookie.name, cookie.value, {
             ...cookie,
-            // Ensure options are preserved if possible, though getAll doesn't provide them all
           })
         })
         
         response.cookies.delete("last_activity")
         return response
       }
+    } else {
+      // If user is logged in but no last_activity, set it now
+      supabaseResponse.cookies.set("last_activity", Date.now().toString(), {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 7,
+      })
     }
 
-    supabaseResponse.cookies.set("last_activity", Date.now().toString(), {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7,
-    })
+    if (lastActivity) {
+      supabaseResponse.cookies.set("last_activity", Date.now().toString(), {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 7,
+      })
+    }
   }
 
   if (!request.nextUrl.pathname.startsWith("/auth") && request.nextUrl.pathname !== "/" && !user) {
@@ -82,6 +91,7 @@ export async function updateSession(request: NextRequest) {
   if (
     (request.nextUrl.pathname.startsWith("/auth") || request.nextUrl.pathname === "/") &&
     user &&
+    lastActivity && // Only auto-redirect to dashboard if they have an active session (last_activity exists)
     !request.nextUrl.searchParams.has("timeout")
   ) {
     const url = request.nextUrl.clone()

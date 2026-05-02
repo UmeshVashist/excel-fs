@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
 import { NextResponse } from "next/server"
+import { cookies } from "next/headers"
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -40,6 +41,15 @@ export async function GET(request: Request) {
     )
   }
 
+  // Set last_activity cookie immediately upon successful OAuth exchange
+  const cookieStore = await cookies()
+  cookieStore.set("last_activity", Date.now().toString(), {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 7,
+  })
+
   // Get current authenticated user
   const {
     data: { user },
@@ -74,7 +84,7 @@ export async function GET(request: Request) {
   while (retryCount < maxRetries) {
     const { data, error: profileError } = await supabase
       .from("profiles")
-      .select("oauth_provider, password_set")
+      .select("oauth_provider, password_set, email")
       .eq("id", user.id)
       .maybeSingle()
 
@@ -136,6 +146,15 @@ export async function GET(request: Request) {
         )
       )
     }
+  }
+
+  // Ensure profiles table email is in sync with auth.users email
+  // This is crucial for email changes where auth.users updates first
+  if (user.email && profile.email !== user.email) {
+    await supabase
+      .from("profiles")
+      .update({ email: user.email })
+      .eq("id", user.id)
   }
 
   // Ensure oauth_provider is set if they just logged in via OAuth

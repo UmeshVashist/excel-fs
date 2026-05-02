@@ -64,27 +64,27 @@ export function NotesList({
       {notes.map((note) => (
         <Card key={note.id} className="bg-white/5 border border-white/10 rounded-lg backdrop-blur-2xl transition-all hover:shadow-lg hover:shadow-white/10">
           <CardHeader>
-            <div className="flex items-start justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
               <div className="flex-1">
-                <CardTitle className="text-white flex items-center gap-2">
+                <CardTitle className="text-white flex items-center gap-2 flex-wrap">
                   {note.title}
-                  {note.is_favorite && <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />}
+                  {note.is_favorite && <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 shrink-0" />}
                 </CardTitle>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 shrink-0 flex-wrap">
                 <Button
                   size="icon"
                   variant="ghost"
                   onClick={() => handleToggleFavorite(note.id, note.is_favorite)}
-                  className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-yellow-500 hover:text-yellow-500 hover:border hover:border-yellow-500"
+                  className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-yellow-500 hover:text-yellow-500 hover:border hover:border-yellow-500 h-9 w-9"
                 >
-                  <Star className={note.is_favorite ? "fill-yellow-400 text-yellow-400" : ""} />
+                  <Star className={note.is_favorite ? "fill-yellow-400 text-yellow-400 h-4 w-4" : "h-4 w-4"} />
                 </Button>
                 <Button
                   size="icon"
                   variant="ghost"
                   onClick={() => onEdit(note)}
-                  className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-blue-500 hover:text-blue-500 hover:border hover:border-blue-500"
+                  className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-blue-500 hover:text-blue-500 hover:border hover:border-blue-500 h-9 w-9"
                 >
                   <Edit className="h-4 w-4" />
                 </Button>
@@ -92,7 +92,7 @@ export function NotesList({
                   size="icon"
                   variant="ghost"
                   onClick={() => handleDelete(note.id)}
-                  className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-red-500 hover:text-red-500 hover:border hover:border-red-500"
+                  className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-red-500 hover:text-red-500 hover:border hover:border-red-500 h-9 w-9"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -101,9 +101,9 @@ export function NotesList({
                     size="icon"
                     variant="ghost"
                     onClick={() => handleCopy(note.id, note.description || "")}
-                    className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-blue-500 hover:text-blue-500 hover:border hover:border-blue-500"
+                    className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-cyan-500 hover:text-cyan-500 hover:border hover:border-cyan-500 h-9 w-9"
                   >
-                    {copiedId === note.id ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4" />}
+                    {copiedId === note.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                   </Button>
                 )}
               </div>
@@ -111,7 +111,7 @@ export function NotesList({
           </CardHeader>
           {note.description && (
             <CardContent>
-              <div className="block p-3 bg-white/5 rounded border border-white/10 text-slate-200 text-sm overflow-x-auto overflow-y-auto whitespace-pre-wrap max-h-[5.6rem] scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+              <div className="block p-3 bg-white/5 rounded border border-white/10 text-slate-200 text-sm overflow-y-auto whitespace-pre-wrap break-words max-h-[8rem] sm:max-h-[12rem] scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
                 {note.description}
               </div>
             </CardContent>

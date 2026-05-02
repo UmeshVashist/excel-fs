@@ -29,10 +29,17 @@ export default function LoginPage() {
       setError(decodeURIComponent(errorParam))
     }
     
+    if (searchParams.get("timeout") === "true") {
+      setError("Your session has expired. Please login again.")
+    } else if (searchParams.get("expired") === "true") {
+      setError("Your password has expired. Please login to change it.")
+    }
+
     if (
       searchParams.get("expired") === "true" ||
       searchParams.get("timeout") === "true"
     ) {
+      // Use router.replace to clean up URL without full reload yet
       router.replace("/auth/login")
     }
   }, [searchParams, router])
@@ -57,7 +64,9 @@ export default function LoginPage() {
         return
       }
 
-      router.replace("/dashboard")
+      // Use window.location.href for a full reload to ensure cookies are synchronized
+      // This fixes the "must login twice" issue after session timeout
+      window.location.href = "/dashboard"
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred")
     } finally {
@@ -164,7 +173,7 @@ export default function LoginPage() {
                         <path d="M12 5.38c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 12-4.53z" fill="#EA4335"/>
                       </svg>
                     )}
-                    <span className="hidden sm:inline text-sm text-white">Gmail</span>
+                    <span className="hidden sm:inline text-sm text-white">Google</span>
                   </button>
                   <button
                     type="button"

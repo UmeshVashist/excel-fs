@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
+import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -11,6 +12,7 @@ import { FormulaList } from "@/components/formula-list"
 import { ShortcutList } from "@/components/shortcut-list"
 import { NotesList } from "@/components/notes-list"
 import { UrlsList } from "@/components/urls-list"
+import { TodoItem } from "@/components/todo-item"
 import { SearchingLoader } from "@/components/searching-loader"
 import { SetupAccountPopup } from "@/components/setup-account-popup"
 
@@ -146,50 +148,50 @@ export function DashboardClient({
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        <div onClick={() => router.push("/formulas")} className="cursor-pointer">
-          <Card className="border text-center border-cyan-500 bg-white/5 rounded-lg backdrop-blur-2xl transition-all hover:shadow-lg hover:shadow-cyan-500/50 hover:scale-105">
+        <Link href="/formulas" className="block">
+          <Card className="border text-center border-cyan-500 bg-white/5 rounded-lg backdrop-blur-2xl transition-all hover:shadow-lg hover:shadow-cyan-500/50 hover:scale-105 h-full">
             <CardHeader className="pb-3">
               <CardTitle className="text-cyan-500 text-lg">Formulas</CardTitle>
               <CardDescription className="text-cyan-500 text-2xl font-bold">{initialFormulasCount}</CardDescription>
             </CardHeader>
           </Card>
-        </div>
+        </Link>
 
-        <div onClick={() => router.push("/shortcuts")} className="cursor-pointer">
-          <Card className="border text-center border-orange-500 bg-white/5 rounded-lg backdrop-blur-2xl transition-all hover:shadow-lg hover:shadow-orange-500/50 hover:scale-105">
+        <Link href="/shortcuts" className="block">
+          <Card className="border text-center border-orange-500 bg-white/5 rounded-lg backdrop-blur-2xl transition-all hover:shadow-lg hover:shadow-orange-500/50 hover:scale-105 h-full">
             <CardHeader className="pb-3">
               <CardTitle className="text-orange-500 text-lg">Shortcuts</CardTitle>
               <CardDescription className="text-orange-500 text-2xl font-bold">{initialShortcutsCount}</CardDescription>
             </CardHeader>
           </Card>
-        </div>
+        </Link>
 
-        <div onClick={() => router.push("/notes")} className="cursor-pointer">
-          <Card className="border text-center border-green-500 bg-white/5 rounded-lg backdrop-blur-2xl transition-all hover:shadow-lg hover:shadow-green-500/50 hover:scale-105">
+        <Link href="/notes" className="block">
+          <Card className="border text-center border-green-500 bg-white/5 rounded-lg backdrop-blur-2xl transition-all hover:shadow-lg hover:shadow-green-500/50 hover:scale-105 h-full">
             <CardHeader className="pb-3">
               <CardTitle className="text-green-500 text-lg">Notes</CardTitle>
               <CardDescription className="text-green-500 text-2xl font-bold">{initialNotesCount}</CardDescription>
             </CardHeader>
           </Card>
-        </div>
+        </Link>
 
-        <div onClick={() => router.push("/urls")} className="cursor-pointer">
-          <Card className="border text-center border-orange-500 bg-white/5 rounded-lg backdrop-blur-2xl transition-all hover:shadow-lg hover:shadow-orange-500/50 hover:scale-105">
+        <Link href="/urls" className="block">
+          <Card className="border text-center border-orange-500 bg-white/5 rounded-lg backdrop-blur-2xl transition-all hover:shadow-lg hover:shadow-orange-500/50 hover:scale-105 h-full">
             <CardHeader className="pb-3">
               <CardTitle className="text-orange-500 text-lg">URLs</CardTitle>
               <CardDescription className="text-orange-500 text-2xl font-bold">{initialUrlsCount}</CardDescription>
             </CardHeader>
           </Card>
-        </div>
+        </Link>
 
-        <div onClick={() => router.push("/todos")} className="cursor-pointer">
-          <Card className="border text-center border-cyan-500 bg-white/5 rounded-lg backdrop-blur-2xl transition-all hover:shadow-lg hover:shadow-cyan-500/50 hover:scale-105">
+        <Link href="/todos" className="block">
+          <Card className="border text-center border-cyan-500 bg-white/5 rounded-lg backdrop-blur-2xl transition-all hover:shadow-lg hover:shadow-cyan-500/50 hover:scale-105 h-full">
             <CardHeader className="pb-3">
               <CardTitle className="text-cyan-500 text-lg">Todos</CardTitle>
               <CardDescription className="text-cyan-500 text-2xl font-bold">{initialTodosCount}</CardDescription>
             </CardHeader>
           </Card>
-        </div>
+        </Link>
       </div>
 
       <Card className="border text-center  bg-white/5 rounded-lg backdrop-blur-2xl transition-all hover:shadow-lg hover:shadow-white/10">
@@ -259,14 +261,12 @@ export function DashboardClient({
               <h3 className="text-lg font-semibold text-orange-500">Todos</h3>
               <div className="grid gap-4">
                 {searchResults.todos.map((todo: any) => (
-                  <Card key={todo.id} className="bg-white/5 border border-white/10 rounded-lg backdrop-blur-2xl transition-all hover:shadow-lg hover:shadow-white/10">
-                    <CardHeader>
-                      <CardTitle className="text-white">{todo.title}</CardTitle>
-                      {todo.description && (
-                        <CardDescription className="text-slate-400">{todo.description}</CardDescription>
-                      )}
-                    </CardHeader>
-                  </Card>
+                  <TodoItem 
+                    key={todo.id} 
+                    todo={todo} 
+                    onEdit={() => {}} 
+                    onUpdate={() => {}} 
+                  />
                 ))}
               </div>
             </div>

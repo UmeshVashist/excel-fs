@@ -62,19 +62,16 @@ const menuItems = [
   // },
 ]
 
-export function Sidebar() {
+export function Sidebar({ user }: { user?: any }) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
   const [profile, setProfile] = useState<{ username: string | null; email: string | null; id: string | null } | null>(null)
-  const [user, setUser] = useState<any>(null)
   const [modalType, setModalType] = useState<"profile" | "password" | "danger" | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
 
   const fetchProfile = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
     if (user) {
-      setUser(user)
       const { data } = await supabase
         .from("profiles")
         .select("username, email, id")
@@ -94,7 +91,13 @@ export function Sidebar() {
   }
 
   useEffect(() => {
-    fetchProfile()
+    if (user) {
+      fetchProfile()
+    }
+  }, [user, supabase])
+
+  useEffect(() => {
+    if (!user) return
 
     // Subscribe to realtime changes for the profile
     const channel = supabase
@@ -128,12 +131,14 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="fixed left-0 top-0 h-full w-64 bg-slate-950/20 backdrop-blur-sm border-r border-white/10 text-white shadow-sm flex flex-col">
+    <div className="h-full w-full bg-slate-950/20 backdrop-blur-sm border-r border-white/10 text-white shadow-sm flex flex-col overflow-y-auto">
       <div className="p-6 border-b border-white/10">
-        <h1 className="text-2xl font-bold mb-4">
-            <span className="text-cyan-500">Dev</span>
-            <span className="text-orange-500">Board</span>
-        </h1>
+        <Link href="/dashboard" className="block hover:opacity-80 transition-opacity">
+          <h1 className="text-2xl font-bold mb-4">
+              <span className="text-cyan-500">Dev</span>
+              <span className="text-orange-500">Board</span>
+          </h1>
+        </Link>
         
         {profile && (
           <DropdownMenu>
@@ -219,6 +224,6 @@ export function Sidebar() {
         user={user}
         onUpdate={fetchProfile}
       />
-    </aside>
+    </div>
   )
 }

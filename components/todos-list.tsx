@@ -61,23 +61,23 @@ export function TodosList({ initialTodos, userId }: { initialTodos: Todo[]; user
   })
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 ml-64">
-      <div className="p-8">
-        <div className="flex items-center justify-between mb-8">
+    <div className="min-h-screen">
+      <div className="p-0 sm:p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold text-white mb-2">Todos</h1>
             <p className="text-slate-400">Manage your tasks and track progress</p>
           </div>
           <Button
             onClick={() => setIsFormOpen(true)}
-            className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 transition-all hover:shadow-lg hover:shadow-blue-600 border border-blue-500 text-blue-500 hover:text-blue-500"
+            className="w-full sm:w-auto bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 transition-all hover:shadow-lg hover:shadow-blue-600 border border-blue-500 text-blue-500 hover:text-blue-500"
           >
             <Plus className="mr-2 h-4 w-4" />
             Add Todo
           </Button>
         </div>
 
-        <div className="flex gap-4 mb-6">
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-5 w-5" />
             <Input
@@ -87,17 +87,18 @@ export function TodosList({ initialTodos, userId }: { initialTodos: Todo[]; user
               className="pl-10 bg-slate-800/50 border-slate-700 text-white"
             />
           </div>
-          <Select value={favoriteFilter} onValueChange={setFavoriteFilter}>
-            <SelectTrigger className="w-48 bg-slate-800/50 border-slate-700 text-white">
-              <SelectValue placeholder="Filter by favorite" />
-            </SelectTrigger>
-            <SelectContent className="bg-slate-800 border-slate-700 text-white">
-              <SelectItem value="all">All Todos</SelectItem>
-              <SelectItem value="favorite">Favorites</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-48 bg-slate-800/50 border-slate-700 text-white">
+          <div className="flex gap-4">
+            <Select value={favoriteFilter} onValueChange={setFavoriteFilter}>
+              <SelectTrigger className="flex-1 md:w-48 bg-slate-800/50 border-slate-700 text-white">
+                <SelectValue placeholder="Filter by favorite" />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                <SelectItem value="all">All Todos</SelectItem>
+                <SelectItem value="favorite">Favorites</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="flex-1 md:w-48 bg-slate-800/50 border-slate-700 text-white">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent className="bg-slate-800 border-slate-700 text-white">

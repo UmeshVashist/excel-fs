@@ -59,21 +59,29 @@ export function SettingsModals({ type, open, onOpenChange, user, onUpdate }: Set
     setMessage(null)
 
     try {
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({ username, email, updated_at: new Date().toISOString() })
-        .eq("id", user.id)
-
-      if (profileError) throw profileError
-
       if (email !== user.email) {
+        // Request email update in Supabase Auth
+        // This will send confirmation emails
         const { error: emailError } = await supabase.auth.updateUser({ email })
         if (emailError) throw emailError
-      }
+        
+        setMessage({ 
+          type: "success", 
+          text: "Confirmation emails sent! Please check both your current and new email addresses to confirm the change." 
+        })
+      } else {
+        // Only update username if email hasn't changed
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .update({ username, updated_at: new Date().toISOString() })
+          .eq("id", user.id)
 
-      if (onUpdate) onUpdate()
-      setMessage({ type: "success", text: "Profile updated successfully!" })
-      setTimeout(() => onOpenChange(false), 2000)
+        if (profileError) throw profileError
+        
+        if (onUpdate) onUpdate()
+        setMessage({ type: "success", text: "Profile updated successfully!" })
+        setTimeout(() => onOpenChange(false), 2000)
+      }
     } catch (error: any) {
       setMessage({ type: "error", text: error.message || "Failed to update profile" })
     } finally {

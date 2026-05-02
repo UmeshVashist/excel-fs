@@ -4,7 +4,7 @@ import { useEffect, useCallback } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 
-const INACTIVITY_TIMEOUT = 20 * 60 * 1000 // 20 minutes
+const INACTIVITY_TIMEOUT = 30 * 60 * 1000 // 30 minutes (synced with middleware)
 const PASSWORD_AGE_LIMIT = 90 * 24 * 60 * 60 * 1000 // 90 days
 
 export function AuthMonitor() {

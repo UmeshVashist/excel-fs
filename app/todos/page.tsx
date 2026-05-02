@@ -19,5 +19,5 @@ export default async function TodosPage() {
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
 
-  return <TodosClient initialTodos={todos || []} userId={user.id} />
+  return <TodosClient initialTodos={todos || []} userId={user.id} user={user} />
 }

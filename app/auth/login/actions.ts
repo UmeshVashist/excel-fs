@@ -3,37 +3,65 @@
 import { createClient } from "@/lib/supabase/server"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
 import { getURL } from "@/lib/utils"
+import { cookies } from "next/headers"
 
 export async function loginAction(identifier: string, password: string) {
   const supabase = await createClient()
+  const cookieStore = await cookies()
 
-  // First, try to login with email
-  let loginResult = await supabase.auth.signInWithPassword({
-    email: identifier,
-    password,
-  })
+  const isEmail = identifier.includes("@")
+  let email = identifier.trim()
 
-  // If email login fails, try to find user by username in profiles table
-  if (loginResult.error) {
-    // Use service role client to bypass RLS for username lookup
+  // If it doesn't look like an email, try to find the email by username first
+  if (!isEmail) {
     const serviceClient = createServiceRoleClient()
-    const { data: profile } = await serviceClient
+    const { data: profile, error: profileError } = await serviceClient
       .from("profiles")
       .select("email")
-      .ilike("username", identifier)
+      .ilike("username", identifier.trim())
       .maybeSingle()
 
     if (profile?.email) {
-      loginResult = await supabase.auth.signInWithPassword({
-        email: profile.email,
-        password,
-      })
+      email = profile.email
+    } else {
+      // Fallback: Check if the user accidentally entered an email that was recorded as a username
+      // Or if the username lookup failed for some other reason
+      console.error("Username lookup failed:", profileError)
     }
   }
 
-  if (loginResult.error) {
+  // Login with the resolved email or original identifier
+  const loginResult = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  })
+
+  // If the first attempt failed and we haven't tried the original identifier as email yet
+  if (loginResult.error && !isEmail && email !== identifier.trim()) {
+    const secondAttempt = await supabase.auth.signInWithPassword({
+      email: identifier.trim(),
+      password,
+    })
+    
+    if (secondAttempt.error) {
+      return { error: secondAttempt.error.message }
+    }
+    
+    // If second attempt succeeded, update variables for subsequent logic
+    loginResult.data = secondAttempt.data
+    loginResult.error = null
+  } else if (loginResult.error) {
     return { error: loginResult.error.message }
   }
+
+  // Set last_activity cookie immediately upon successful login
+  // This helps prevent the middleware redirect loop
+  cookieStore.set("last_activity", Date.now().toString(), {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 7,
+  })
 
   // Check for password expiration (90 days)
   const { data: profile } = await supabase

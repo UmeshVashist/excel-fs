@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Plus, Search } from "lucide-react"
+import { Plus, Search, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -31,6 +31,7 @@ export function TodosList({ initialTodos, userId }: { initialTodos: Todo[]; user
         .from("todos")
         .select("*")
         .eq("user_id", userId)
+        .eq("is_deleted", false)
         .order("created_at", { ascending: false })
       return data as Todo[]
     },
@@ -85,8 +86,16 @@ export function TodosList({ initialTodos, userId }: { initialTodos: Todo[]; user
               placeholder="Search todos by title..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-slate-800/50 border-slate-700 text-white"
+              className="pl-10 pr-10 bg-slate-800/50 border-slate-700 text-white"
             />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-red-500 hover:text-red-400 transition-colors cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            )}
           </div>
           <div className="flex gap-4">
             <Select value={favoriteFilter} onValueChange={setFavoriteFilter}>

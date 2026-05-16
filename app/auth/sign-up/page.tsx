@@ -143,7 +143,7 @@ export default function SignUpPage() {
                   type="button"
                   onClick={() => handleOAuthSignUp("google")}
                   disabled={oauthLoading === "google" || isLoading}
-                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-slate-900/40 hover:bg-slate-800/60 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:cursor-pointer font-medium group"
+                  className="btn-custom btn-custom-purple w-full disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {oauthLoading === "google" ? (
                     <Loader2 className="w-5 h-5 animate-spin text-red-500" />
@@ -161,7 +161,7 @@ export default function SignUpPage() {
                   type="button"
                   onClick={() => handleOAuthSignUp("github")}
                   disabled={oauthLoading === "github" || isLoading}
-                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-slate-900/40 hover:bg-slate-800/60 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:cursor-pointer font-medium group"
+                  className="btn-custom btn-custom-purple w-full disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {oauthLoading === "github" ? (
                     <Loader2 className="w-5 h-5 animate-spin text-gray-300" />

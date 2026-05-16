@@ -31,8 +31,9 @@ export async function updateSession(request: NextRequest) {
   )
 
   const {
-    data: { user },
+    data,
   } = await supabase.auth.getUser()
+  const user = data?.user
 
   const lastActivity = request.cookies.get("last_activity")?.value
 
@@ -83,19 +84,17 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (!request.nextUrl.pathname.startsWith("/auth") && request.nextUrl.pathname !== "/" && !user) {
-    const url = request.nextUrl.clone()
-    url.pathname = "/auth/login"
+    const url = new URL("/auth/login", request.url)
     return NextResponse.redirect(url)
   }
 
   if (
     (request.nextUrl.pathname.startsWith("/auth") || request.nextUrl.pathname === "/") &&
     user &&
-    lastActivity && // Only auto-redirect to dashboard if they have an active session (last_activity exists)
+    lastActivity && 
     !request.nextUrl.searchParams.has("timeout")
   ) {
-    const url = request.nextUrl.clone()
-    url.pathname = "/dashboard"
+    const url = new URL("/dashboard", request.url)
     return NextResponse.redirect(url)
   }
 

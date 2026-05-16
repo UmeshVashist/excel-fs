@@ -5,7 +5,7 @@ import { Star, Edit2, Trash2, Copy, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
-import { cn } from "@/lib/utils"
+import { cn, copyToClipboard } from "@/lib/utils"
 
 interface Todo {
   id: string
@@ -36,18 +36,32 @@ export function TodoItem({
   }
 
   const handleDelete = async () => {
-    if (confirm("Are you sure you want to delete this todo?")) {
-      await supabase.from("todos").delete().eq("id", todo.id)
-      onUpdate()
-      router.refresh()
+    if (confirm("Are you sure you want to move this todo to Recycle Bin?")) {
+      const { error } = await supabase
+        .from("todos")
+        .update({ 
+          is_deleted: true, 
+          deleted_at: new Date().toISOString() 
+        })
+        .eq("id", todo.id)
+      
+      if (error) {
+        console.error("Error moving todo to recycle bin:", error)
+        alert("Failed to move item to recycle bin. Please check if the database columns exist.")
+      } else {
+        onUpdate()
+        router.refresh()
+      }
     }
   }
 
   const handleCopy = async () => {
     if (todo.description) {
-      await navigator.clipboard.writeText(todo.description)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      const success = await copyToClipboard(todo.description)
+      if (success) {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      }
     }
   }
 
@@ -79,8 +93,8 @@ export function TodoItem({
 
   return (
     <div className="bg-white/5 border border-white/10 rounded-lg p-4 sm:p-6 backdrop-blur-2xl transition-all hover:shadow-lg hover:shadow-white/10">
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4">
-        <div className="flex-1">
+      <div className="flex items-center justify-between gap-4 mb-4">
+        <div className="flex-1 min-w-0">
           <h3 className="text-xl font-semibold text-white mb-2 break-words">{todo.title}</h3>
           <div
             className={cn(
@@ -91,49 +105,48 @@ export function TodoItem({
             {getStatusLabel(todo.status)}
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0 flex-wrap">
+        <div className="flex items-center gap-2 shrink-0">
           <Button
             variant="ghost"
             size="icon"
             onClick={handleFavoriteToggle}
-            className={cn(
-              "h-9 w-9 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 hover:border hover:border-yellow-600 transition-all",
-              isFavorite ? "text-yellow-500 hover:text-yellow-600" : "text-yellow-500 hover:text-yellow-500",
-            )}
+            className="btn-custom btn-custom-amber h-9 w-9 px-0 rounded-lg"
           >
-            <Star className={cn("h-4 w-4", isFavorite && "fill-current")} />
+            <Star className={cn("h-4 w-4 text-white", isFavorite && "fill-white")} />
           </Button>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => onEdit(todo)}
-            className="h-9 w-9 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-blue-500 hover:text-blue-600 hover:border hover:border-blue-600 transition-all"
+            className="btn-custom btn-custom-purple h-9 w-9 px-0 rounded-lg"
           >
-            <Edit2 className="h-4 w-4" />
+            <Edit2 className="h-4 w-4 text-white" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
             onClick={handleDelete}
-            className="h-9 w-9 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-red-500 hover:text-red-600 hover:border hover:border-red-600 transition-all"
+            className="btn-custom btn-custom-red h-9 w-9 px-0 rounded-lg"
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-4 w-4 text-white" />
           </Button>
         </div>
       </div>
       {todo.description && (
         <div className="relative group">
-          <div className="bg-white/5 border border-white/10 rounded p-3 pr-12 text-slate-300 text-sm whitespace-pre-wrap break-words">
-            {todo.description}
+          <div className="flex items-start gap-2">
+            <div className="flex-1 bg-white/5 border border-white/10 rounded p-3 text-slate-300 text-sm whitespace-pre-wrap break-words">
+              {todo.description}
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleCopy}
+              className="btn-custom btn-custom-cyan h-9 w-9 px-0 shrink-0 rounded-lg"
+            >
+              {copied ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4 text-white" />}
+            </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleCopy}
-            className="absolute right-2 top-2 h-8 w-8 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-cyan-500 hover:text-cyan-600 hover:border hover:border-cyan-600 transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
-          >
-            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-          </Button>
         </div>
       )}
       {todo.remark && (

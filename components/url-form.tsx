@@ -176,14 +176,14 @@ export function UrlForm({
                 <Button
                   type="submit"
                   disabled={isLoading}
-                  className="flex-1 bg-slate-950/20 text-blue-400 border border-blue-500/50 hover:bg-blue-500/20 hover:border-blue-500 backdrop-blur-sm transition-all hover:shadow-lg hover:shadow-blue-600/50"
+                  className="flex-1 btn-custom btn-custom-cyan"
                 >
                   {isLoading ? "Saving..." : url ? "Update" : "Add"}
                 </Button>
                 <Button
                   type="button"
                   onClick={() => onOpenChange(false)}
-                  className="flex-1 bg-slate-950/20 text-red-400 border border-red-500/50 hover:bg-red-500/20 hover:border-red-500 backdrop-blur-sm transition-all hover:shadow-lg hover:shadow-red-600/50"
+                  className="flex-1 btn-custom btn-custom-red"
                 >
                   Cancel
                 </Button>

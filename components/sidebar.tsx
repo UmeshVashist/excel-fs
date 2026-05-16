@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { LayoutDashboard, FileText, Keyboard, Settings, LogOut, StickyNote, LinkIcon, CheckSquare, User, UserCircle, Lock, AlertTriangle } from "lucide-react"
+import { LayoutDashboard, FileText, Keyboard, Settings, LogOut, StickyNote, LinkIcon, CheckSquare, User, UserCircle, Lock, AlertTriangle, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
@@ -67,7 +67,7 @@ export function Sidebar({ user }: { user?: any }) {
   const router = useRouter()
   const supabase = createClient()
   const [profile, setProfile] = useState<{ username: string | null; email: string | null; id: string | null } | null>(null)
-  const [modalType, setModalType] = useState<"profile" | "password" | "danger" | null>(null)
+  const [modalType, setModalType] = useState<"profile" | "password" | "danger" | "recycle-bin" | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
 
   const fetchProfile = async () => {
@@ -120,7 +120,7 @@ export function Sidebar({ user }: { user?: any }) {
     }
   }, [supabase])
 
-  const openModal = (type: "profile" | "password" | "danger") => {
+  const openModal = (type: "profile" | "password" | "danger" | "recycle-bin") => {
     setModalType(type)
     setIsModalOpen(true)
   }
@@ -173,6 +173,13 @@ export function Sidebar({ user }: { user?: any }) {
               >
                 <Lock className="h-4 w-4 text-purple-400" />
                 Change Password
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => openModal("recycle-bin")}
+                className="focus:bg-white/10 focus:text-white cursor-pointer gap-2"
+              >
+                <Trash2 className="h-4 w-4 text-orange-400" />
+                Recycle Bin
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-slate-800" />
               <DropdownMenuItem 

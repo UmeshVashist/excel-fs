@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search } from "lucide-react"
+import { Search, X } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { FormulaList } from "@/components/formula-list"
 import { ShortcutList } from "@/components/shortcut-list"
@@ -15,6 +15,11 @@ import { UrlsList } from "@/components/urls-list"
 import { TodoItem } from "@/components/todo-item"
 import { SearchingLoader } from "@/components/searching-loader"
 import { SetupAccountPopup } from "@/components/setup-account-popup"
+import { FormulaForm } from "@/components/formula-form"
+import { ShortcutForm } from "@/components/shortcut-form"
+import { NoteForm } from "@/components/note-form"
+import { UrlForm } from "@/components/url-form"
+import { TodoForm } from "@/components/todo-form"
 
 export function DashboardClient({
   initialFormulasCount,
@@ -33,6 +38,7 @@ export function DashboardClient({
 }) {
   const [searchQuery, setSearchQuery] = useState("")
   const [searchCategory, setSearchCategory] = useState("all")
+  const [favoriteFilter, setFavoriteFilter] = useState("all")
   const [searchResults, setSearchResults] = useState<any>({
     formulas: [],
     shortcuts: [],
@@ -43,10 +49,100 @@ export function DashboardClient({
   const [isLoading, setIsLoading] = useState(false)
   const [isSetupPopupOpen, setIsSetupPopupOpen] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
+  const [editingItem, setEditingItem] = useState<{ type: string; data: any } | null>(null)
+  const [isFormOpen, setIsFormOpen] = useState(false)
 
   const supabase = createClient()
   const router = useRouter()
   const searchParams = useSearchParams()
+
+  const handleUpdate = async () => {
+    // Re-trigger the search to update the results
+    const results: any = { formulas: [], shortcuts: [], notes: [], urls: [], todos: [] }
+    setIsLoading(true)
+
+    const applyFavoriteFilter = (query: any) => {
+      if (favoriteFilter === "favorites") {
+        return query.eq("is_favorite", true)
+      } else if (favoriteFilter === "unfavorites") {
+        return query.eq("is_favorite", false)
+      }
+      return query
+    }
+
+    if (searchCategory === "all" || searchCategory === "formulas") {
+      let query = supabase
+        .from("formulas")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("is_deleted", false)
+        .ilike("title", `%${searchQuery}%`)
+      
+      query = applyFavoriteFilter(query)
+      const { data } = await query.limit(5)
+      results.formulas = data || []
+    }
+
+    if (searchCategory === "all" || searchCategory === "shortcuts") {
+      let query = supabase
+        .from("shortcuts")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("is_deleted", false)
+        .ilike("title", `%${searchQuery}%`)
+      
+      query = applyFavoriteFilter(query)
+      const { data } = await query.limit(5)
+      results.shortcuts = data || []
+    }
+
+    if (searchCategory === "all" || searchCategory === "notes") {
+      let query = supabase
+        .from("notes")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("is_deleted", false)
+        .ilike("title", `%${searchQuery}%`)
+      
+      query = applyFavoriteFilter(query)
+      const { data } = await query.limit(5)
+      results.notes = data || []
+    }
+
+    if (searchCategory === "all" || searchCategory === "urls") {
+      let query = supabase
+        .from("urls")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("is_deleted", false)
+        .ilike("title", `%${searchQuery}%`)
+      
+      query = applyFavoriteFilter(query)
+      const { data } = await query.limit(5)
+      results.urls = data || []
+    }
+
+    if (searchCategory === "all" || searchCategory === "todos") {
+      let query = supabase
+        .from("todos")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("is_deleted", false)
+        .ilike("title", `%${searchQuery}%`)
+      
+      query = applyFavoriteFilter(query)
+      const { data } = await query.limit(5)
+      results.todos = data || []
+    }
+
+    setSearchResults(results)
+    setIsLoading(false)
+  }
+
+  const handleEdit = (type: string, data: any) => {
+    setEditingItem({ type, data })
+    setIsFormOpen(true)
+  }
 
   useEffect(() => {
     setIsMounted(true)
@@ -87,69 +183,88 @@ export function DashboardClient({
       setIsLoading(true)
       const results: any = { formulas: [], shortcuts: [], notes: [], urls: [], todos: [] }
 
+      const applyFavoriteFilter = (query: any) => {
+        if (favoriteFilter === "favorites") {
+          return query.eq("is_favorite", true)
+        } else if (favoriteFilter === "unfavorites") {
+          return query.eq("is_favorite", false)
+        }
+        return query
+      }
+
       // Search based on category selection
       if (searchCategory === "all" || searchCategory === "formulas") {
-        const { data } = await supabase
+        let query = supabase
           .from("formulas")
           .select("*")
           .eq("user_id", userId)
           .ilike("title", `%${searchQuery}%`)
-          .limit(5)
+        
+        query = applyFavoriteFilter(query)
+        const { data } = await query.limit(5)
         results.formulas = data || []
       }
 
       if (searchCategory === "all" || searchCategory === "shortcuts") {
-        const { data } = await supabase
+        let query = supabase
           .from("shortcuts")
           .select("*")
           .eq("user_id", userId)
           .ilike("title", `%${searchQuery}%`)
-          .limit(5)
+        
+        query = applyFavoriteFilter(query)
+        const { data } = await query.limit(5)
         results.shortcuts = data || []
       }
 
       if (searchCategory === "all" || searchCategory === "notes") {
-        const { data } = await supabase
+        let query = supabase
           .from("notes")
           .select("*")
           .eq("user_id", userId)
           .ilike("title", `%${searchQuery}%`)
-          .limit(5)
+        
+        query = applyFavoriteFilter(query)
+        const { data } = await query.limit(5)
         results.notes = data || []
       }
 
       if (searchCategory === "all" || searchCategory === "urls") {
-        const { data } = await supabase
+        let query = supabase
           .from("urls")
           .select("*")
           .eq("user_id", userId)
           .ilike("title", `%${searchQuery}%`)
-          .limit(5)
+        
+        query = applyFavoriteFilter(query)
+        const { data } = await query.limit(5)
         results.urls = data || []
       }
 
       if (searchCategory === "all" || searchCategory === "todos") {
-        const { data } = await supabase
+        let query = supabase
           .from("todos")
           .select("*")
           .eq("user_id", userId)
           .ilike("title", `%${searchQuery}%`)
-          .limit(5)
+        
+        query = applyFavoriteFilter(query)
+        const { data } = await query.limit(5)
         results.todos = data || []
       }
 
       setSearchResults(results)
       setIsLoading(false)
-    }, 300)
+    }, 500)
 
     return () => clearTimeout(timer)
-  }, [searchQuery, searchCategory, userId, supabase])
+  }, [searchQuery, searchCategory, favoriteFilter, userId, supabase])
 
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <Link href="/formulas" className="block">
-          <Card className="border text-center border-cyan-500 bg-white/5 rounded-lg backdrop-blur-2xl transition-all hover:shadow-lg hover:shadow-cyan-500/50 hover:scale-105 h-full">
+          <Card className="border text-center border-cyan-500 bg-white/5 rounded-lg backdrop-blur-2xl transition-all duration-1000 card-hover-cyan hover:scale-105 h-full">
             <CardHeader className="pb-3">
               <CardTitle className="text-cyan-500 text-lg">Formulas</CardTitle>
               <CardDescription className="text-cyan-500 text-2xl font-bold">{initialFormulasCount}</CardDescription>
@@ -158,7 +273,7 @@ export function DashboardClient({
         </Link>
 
         <Link href="/shortcuts" className="block">
-          <Card className="border text-center border-orange-500 bg-white/5 rounded-lg backdrop-blur-2xl transition-all hover:shadow-lg hover:shadow-orange-500/50 hover:scale-105 h-full">
+          <Card className="border text-center border-orange-500 bg-white/5 rounded-lg backdrop-blur-2xl transition-all duration-1000 card-hover-orange hover:scale-105 h-full">
             <CardHeader className="pb-3">
               <CardTitle className="text-orange-500 text-lg">Shortcuts</CardTitle>
               <CardDescription className="text-orange-500 text-2xl font-bold">{initialShortcutsCount}</CardDescription>
@@ -167,7 +282,7 @@ export function DashboardClient({
         </Link>
 
         <Link href="/notes" className="block">
-          <Card className="border text-center border-green-500 bg-white/5 rounded-lg backdrop-blur-2xl transition-all hover:shadow-lg hover:shadow-green-500/50 hover:scale-105 h-full">
+          <Card className="border text-center border-green-500 bg-white/5 rounded-lg backdrop-blur-2xl transition-all duration-1000 card-hover-green hover:scale-105 h-full">
             <CardHeader className="pb-3">
               <CardTitle className="text-green-500 text-lg">Notes</CardTitle>
               <CardDescription className="text-green-500 text-2xl font-bold">{initialNotesCount}</CardDescription>
@@ -176,7 +291,7 @@ export function DashboardClient({
         </Link>
 
         <Link href="/urls" className="block">
-          <Card className="border text-center border-orange-500 bg-white/5 rounded-lg backdrop-blur-2xl transition-all hover:shadow-lg hover:shadow-orange-500/50 hover:scale-105 h-full">
+          <Card className="border text-center border-orange-500 bg-white/5 rounded-lg backdrop-blur-2xl transition-all duration-1000 card-hover-orange hover:scale-105 h-full">
             <CardHeader className="pb-3">
               <CardTitle className="text-orange-500 text-lg">URLs</CardTitle>
               <CardDescription className="text-orange-500 text-2xl font-bold">{initialUrlsCount}</CardDescription>
@@ -185,7 +300,7 @@ export function DashboardClient({
         </Link>
 
         <Link href="/todos" className="block">
-          <Card className="border text-center border-cyan-500 bg-white/5 rounded-lg backdrop-blur-2xl transition-all hover:shadow-lg hover:shadow-cyan-500/50 hover:scale-105 h-full">
+          <Card className="border text-center border-cyan-500 bg-white/5 rounded-lg backdrop-blur-2xl transition-all duration-1000 card-hover-cyan hover:scale-105 h-full">
             <CardHeader className="pb-3">
               <CardTitle className="text-cyan-500 text-lg">Todos</CardTitle>
               <CardDescription className="text-cyan-500 text-2xl font-bold">{initialTodosCount}</CardDescription>
@@ -204,35 +319,62 @@ export function DashboardClient({
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search across all your data by title..."
                 autoComplete="off"
-                className="pl-10 bg-slate-950/20 text-white"
+                className="pl-10 pr-10 bg-slate-950/20 text-white"
               />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-red-500 hover:text-red-400 transition-colors cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
             {isMounted && (
-              <Select value={searchCategory} onValueChange={setSearchCategory}>
-                <SelectTrigger className="w-full sm:w-[200px] bg-slate-950/20  text-white hover:cursor-pointer">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-slate-950/40 border-cyan-500 backdrop-blur-sm">
-                  <SelectItem value="all" className="text-cyan-500 hover:cursor-pointer">
-                    All
-                  </SelectItem>
-                  <SelectItem value="notes" className="text-white hover:cursor-pointer">
-                    Notes
-                  </SelectItem>
-                  <SelectItem value="urls" className="text-white hover:cursor-pointer">
-                    URLs
-                  </SelectItem>
-                  <SelectItem value="todos" className="text-white hover:cursor-pointer">
-                    Todos
-                  </SelectItem>
-                  <SelectItem value="formulas" className="text-white hover:cursor-pointer">
-                    Formulas
-                  </SelectItem>
-                  <SelectItem value="shortcuts" className="text-white hover:cursor-pointer">
-                    Shortcuts
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex flex-col sm:flex-row gap-4 shrink-0">
+                <Select value={searchCategory} onValueChange={setSearchCategory}>
+                  <SelectTrigger className="w-full sm:w-[150px] bg-slate-950/20 text-white hover:cursor-pointer">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-950/40 border-cyan-500 backdrop-blur-sm">
+                    <SelectItem value="all" className="text-cyan-500 hover:cursor-pointer">
+                      All Items
+                    </SelectItem>
+                    <SelectItem value="notes" className="text-white hover:cursor-pointer">
+                      Notes
+                    </SelectItem>
+                    <SelectItem value="urls" className="text-white hover:cursor-pointer">
+                      URLs
+                    </SelectItem>
+                    <SelectItem value="todos" className="text-white hover:cursor-pointer">
+                      Todos
+                    </SelectItem>
+                    <SelectItem value="formulas" className="text-white hover:cursor-pointer">
+                      Formulas
+                    </SelectItem>
+                    <SelectItem value="shortcuts" className="text-white hover:cursor-pointer">
+                      Shortcuts
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select value={favoriteFilter} onValueChange={setFavoriteFilter}>
+                  <SelectTrigger className="w-full sm:w-[150px] bg-slate-950/20 text-white hover:cursor-pointer">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-950/40 border-cyan-500 backdrop-blur-sm">
+                    <SelectItem value="all" className="text-white hover:cursor-pointer">
+                      All
+                    </SelectItem>
+                    <SelectItem value="favorites" className="text-white hover:cursor-pointer">
+                      Favorites
+                    </SelectItem>
+                    <SelectItem value="unfavorites" className="text-white hover:cursor-pointer">
+                      Unfavorites
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             )}
           </div>
         </CardContent>
@@ -245,14 +387,14 @@ export function DashboardClient({
           {searchResults.notes.length > 0 && (
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-orange-500">Notes</h3>
-              <NotesList notes={searchResults.notes} onEdit={() => {}} onUpdate={() => {}} />
+              <NotesList notes={searchResults.notes} onEdit={(note) => handleEdit("note", note)} onUpdate={handleUpdate} />
             </div>
           )}
 
           {searchResults.urls.length > 0 && (
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-orange-500">URLs</h3>
-              <UrlsList urls={searchResults.urls} onEdit={() => {}} onUpdate={() => {}} />
+              <UrlsList urls={searchResults.urls} onEdit={(url) => handleEdit("url", url)} onUpdate={handleUpdate} />
             </div>
           )}
 
@@ -264,8 +406,8 @@ export function DashboardClient({
                   <TodoItem 
                     key={todo.id} 
                     todo={todo} 
-                    onEdit={() => {}} 
-                    onUpdate={() => {}} 
+                    onEdit={(todo) => handleEdit("todo", todo)} 
+                    onUpdate={handleUpdate} 
                   />
                 ))}
               </div>
@@ -275,14 +417,14 @@ export function DashboardClient({
           {searchResults.formulas.length > 0 && (
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-orange-500">Formulas</h3>
-              <FormulaList formulas={searchResults.formulas} onEdit={() => {}} onUpdate={() => {}} />
+              <FormulaList formulas={searchResults.formulas} onEdit={(formula) => handleEdit("formula", formula)} onUpdate={handleUpdate} />
             </div>
           )}
 
           {searchResults.shortcuts.length > 0 && (
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-orange-500">Shortcuts</h3>
-              <ShortcutList shortcuts={searchResults.shortcuts} onEdit={() => {}} onUpdate={() => {}} />
+              <ShortcutList shortcuts={searchResults.shortcuts} onEdit={(shortcut) => handleEdit("shortcut", shortcut)} onUpdate={handleUpdate} />
             </div>
           )}
 
@@ -301,6 +443,48 @@ export function DashboardClient({
         isOpen={isSetupPopupOpen}
         onClose={() => setIsSetupPopupOpen(false)}
       />
+
+      {editingItem?.type === "formula" && (
+        <FormulaForm
+          open={isFormOpen}
+          onOpenChange={setIsFormOpen}
+          formula={editingItem.data}
+          userId={userId}
+        />
+      )}
+      {editingItem?.type === "shortcut" && (
+        <ShortcutForm
+          open={isFormOpen}
+          onOpenChange={setIsFormOpen}
+          shortcut={editingItem.data}
+          userId={userId}
+        />
+      )}
+      {editingItem?.type === "note" && (
+        <NoteForm
+          open={isFormOpen}
+          onOpenChange={setIsFormOpen}
+          note={editingItem.data}
+          userId={userId}
+        />
+      )}
+      {editingItem?.type === "url" && (
+        <UrlForm
+          open={isFormOpen}
+          onOpenChange={setIsFormOpen}
+          url={editingItem.data}
+          userId={userId}
+        />
+      )}
+      {editingItem?.type === "todo" && (
+        <TodoForm
+          open={isFormOpen}
+          onOpenChange={setIsFormOpen}
+          todo={editingItem.data}
+          userId={userId}
+          onUpdate={handleUpdate}
+        />
+      )}
     </div>
   )
 }

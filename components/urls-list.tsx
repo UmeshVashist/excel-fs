@@ -6,6 +6,7 @@ import { Star, Trash2, Edit, Copy, Check, Eye, EyeOff } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
+import { copyToClipboard } from "@/lib/utils"
 
 interface Url {
   id: string
@@ -40,8 +41,15 @@ export function UrlsList({
   }
 
   const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this URL?")) {
-      const { error } = await supabase.from("urls").delete().eq("id", id)
+    if (confirm("Are you sure you want to move this URL to Recycle Bin?")) {
+      const { error } = await supabase
+        .from("urls")
+        .update({ 
+          is_deleted: true, 
+          deleted_at: new Date().toISOString() 
+        })
+        .eq("id", id)
+      
       if (!error) {
         onUpdate()
         router.refresh()
@@ -49,14 +57,16 @@ export function UrlsList({
     }
   }
 
-  const handleCopy = (id: string, text: string, field: string) => {
-    navigator.clipboard.writeText(text)
-    setCopiedId(id)
-    setCopiedField(field)
-    setTimeout(() => {
-      setCopiedId(null)
-      setCopiedField("")
-    }, 2000)
+  const handleCopy = async (id: string, text: string, field: string) => {
+    const success = await copyToClipboard(text)
+    if (success) {
+      setCopiedId(id)
+      setCopiedField(field)
+      setTimeout(() => {
+        setCopiedId(null)
+        setCopiedField("")
+      }, 2000)
+    }
   }
 
   const togglePasswordVisibility = (id: string) => {
@@ -83,82 +93,98 @@ export function UrlsList({
     <div className="grid gap-4">
       {urls.map((url) => (
         <Card key={url.id} className="bg-white/5 border border-white/10 rounded-lg backdrop-blur-2xl transition-all hover:shadow-lg hover:shadow-white/10">
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-              <div className="flex-1">
-                <CardTitle className="text-white flex items-center gap-2 flex-wrap">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <CardTitle className="text-white flex items-center gap-2 flex-wrap text-lg">
                   {url.title}
                   {url.is_favorite && <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 shrink-0" />}
                 </CardTitle>
               </div>
-              <div className="flex gap-2 shrink-0 flex-wrap">
+              <div className="flex items-center gap-2 shrink-0">
                 <Button
                   size="icon"
                   variant="ghost"
                   onClick={() => handleToggleFavorite(url.id, url.is_favorite)}
-                  className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-yellow-500 hover:text-yellow-500 hover:border hover:border-yellow-500 h-9 w-9"
+                  className="btn-custom btn-custom-amber h-9 w-9 px-0 rounded-lg"
                 >
-                  <Star className={url.is_favorite ? "fill-yellow-400 text-yellow-400 h-4 w-4" : "h-4 w-4"} />
+                  <Star className={url.is_favorite ? "fill-white text-white h-4 w-4" : "h-4 w-4 text-white"} />
                 </Button>
                 <Button
                   size="icon"
                   variant="ghost"
                   onClick={() => togglePasswordVisibility(url.id)}
-                  className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-violet-700 hover:text-violet-700 hover:border hover:border-violet-700 h-9 w-9"
+                  className="btn-custom btn-custom-purple h-9 w-9 px-0 rounded-lg"
                 >
-                  {visiblePasswords.has(url.id) ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {visiblePasswords.has(url.id) ? <EyeOff className="h-4 w-4 text-white" /> : <Eye className="h-4 w-4 text-white" />}
                 </Button>
                 <Button
                   size="icon"
                   variant="ghost"
                   onClick={() => onEdit(url)}
-                  className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-blue-500 hover:text-blue-500 hover:border hover:border-blue-500 h-9 w-9"
+                  className="btn-custom btn-custom-purple h-9 w-9 px-0 rounded-lg"
                 >
-                  <Edit className="h-4 w-4" />
+                  <Edit className="h-4 w-4 text-white" />
                 </Button>
                 <Button
                   size="icon"
                   variant="ghost"
                   onClick={() => handleDelete(url.id)}
-                  className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-red-500 hover:text-red-500 hover:border hover:border-red-500 h-9 w-9"
+                  className="btn-custom btn-custom-red h-9 w-9 px-0 rounded-lg"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-4 w-4 text-white" />
                 </Button>
               </div>
             </div>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-4">
             <div className="space-y-2">
               <span className="text-slate-300 text-xs uppercase tracking-wide">URL</span>
-              <a
-                href={url.url.startsWith("http") ? url.url : `https://${url.url}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block p-2 bg-white/5 rounded border border-white/10 text-blue-400 text-sm break-all hover:bg-white/10 hover:text-blue-300 transition-colors"
-              >
-                {url.url}
-              </a>
+              <div className="flex items-center gap-2">
+                <a
+                  href={url.url.startsWith("http") ? url.url : `https://${url.url}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 block p-2 bg-white/5 rounded border border-white/10 text-blue-400 text-sm break-all hover:bg-white/10 hover:text-blue-300 transition-colors"
+                >
+                  {url.url}
+                </a>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => handleCopy(url.id, url.url, "url")}
+                  className="btn-custom btn-custom-cyan h-9 w-9 px-0 shrink-0 rounded-lg"
+                >
+                  {copiedId === url.id && copiedField === "url" ? (
+                    <Check className="h-4 w-4 text-green-400" />
+                  ) : (
+                    <Copy className="h-4 w-4 text-white" />
+                  )}
+                </Button>
+              </div>
             </div>
 
             {url.username && (
               <div className="space-y-2">
                 <span className="text-slate-300 text-xs uppercase tracking-wide">Username</span>
                 <div className="relative group">
-                  <div className="block p-2 pr-12 bg-white/5 rounded border border-white/10 text-slate-200 text-sm break-all">
-                    {visiblePasswords.has(url.id) ? url.username : "••••••••"}
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 block p-2 bg-white/5 rounded border border-white/10 text-slate-200 text-sm break-all">
+                      {visiblePasswords.has(url.id) ? url.username : "••••••••"}
+                    </div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => handleCopy(url.id, url.username || "", "username")}
+                      className="btn-custom btn-custom-cyan h-9 w-9 px-0 shrink-0 rounded-lg"
+                    >
+                      {copiedId === url.id && copiedField === "username" ? (
+                        <Check className="h-4 w-4 text-green-400" />
+                      ) : (
+                        <Copy className="h-4 w-4 text-white" />
+                      )}
+                    </Button>
                   </div>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => handleCopy(url.id, url.username || "", "username")}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 hover:border hover:border-blue-500 text-blue-500 hover:text-blue-500 h-8 w-8 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
-                  >
-                    {copiedId === url.id && copiedField === "username" ? (
-                      <Check className="h-4 w-4 text-green-400 border border-green-500" />
-                    ) : (
-                      <Copy className="h-4 w-4" />
-                    )}
-                  </Button>
                 </div>
               </div>
             )}
@@ -167,21 +193,23 @@ export function UrlsList({
               <div className="space-y-2">
                 <span className="text-slate-300 text-xs uppercase tracking-wide">Password</span>
                 <div className="relative group">
-                  <div className="block p-2 pr-12 bg-white/5 rounded border border-white/10 text-slate-200 text-sm break-all font-mono">
-                    {visiblePasswords.has(url.id) ? url.password : "••••••••"}
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 block p-2 bg-white/5 rounded border border-white/10 text-slate-200 text-sm break-all font-mono">
+                      {visiblePasswords.has(url.id) ? url.password : "••••••••"}
+                    </div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => handleCopy(url.id, url.password || "", "password")}
+                      className="btn-custom btn-custom-cyan h-9 w-9 px-0 shrink-0 rounded-lg"
+                    >
+                      {copiedId === url.id && copiedField === "password" ? (
+                        <Check className="h-4 w-4 text-green-400" />
+                      ) : (
+                        <Copy className="h-4 w-4 text-white" />
+                      )}
+                    </Button>
                   </div>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => handleCopy(url.id, url.password || "", "password")}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 hover:border hover:border-blue-500 text-blue-500 hover:text-blue-500 h-8 w-8 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
-                  >
-                    {copiedId === url.id && copiedField === "password" ? (
-                      <Check className="h-4 w-4 text-green-400 border border-green-500" />
-                    ) : (
-                      <Copy className="h-4 w-4" />
-                    )}
-                  </Button>
                 </div>
               </div>
             )}

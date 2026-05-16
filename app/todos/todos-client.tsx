@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Plus, Search } from "lucide-react"
+import { Plus, Search, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -39,6 +39,7 @@ export function TodosClient({
         .from("todos")
         .select("*")
         .eq("user_id", userId)
+        .eq("is_deleted", false)
         .order("created_at", { ascending: false })
       return data as Todo[]
     },
@@ -64,7 +65,10 @@ export function TodosClient({
 
   const filteredTodos = (todos || []).filter((todo) => {
     const matchesSearch = todo.title.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesFavorite = favoriteFilter === "all" || (favoriteFilter === "favorite" && todo.is_favorite)
+    const matchesFavorite =
+      favoriteFilter === "all" ||
+      (favoriteFilter === "favorite" && todo.is_favorite) ||
+      (favoriteFilter === "unfavorite" && !todo.is_favorite)
     const matchesStatus = statusFilter === "all" || todo.status === statusFilter
     return matchesSearch && matchesFavorite && matchesStatus
   })
@@ -78,9 +82,9 @@ export function TodosClient({
         </div>
         <Button
           onClick={() => setIsFormOpen(true)}
-          className="w-full md:w-auto bg-slate-950/20 text-blue-400 border border-blue-500/50 hover:bg-blue-500/20 hover:border-blue-500 backdrop-blur-sm transition-all hover:shadow-lg hover:shadow-blue-600/50"
+          className="btn-custom btn-custom-cyan w-full sm:w-auto px-5 h-9 text-sm"
         >
-          <Plus className="mr-2 h-4 w-4" />
+          <Plus className="h-4 w-4 mr-2" />
           Add Todo
         </Button>
       </div>
@@ -93,8 +97,16 @@ export function TodosClient({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             autoComplete="off"
-            className="pl-10 bg-slate-900/50 border-slate-700 text-white"
+            className="pl-10 pr-10 bg-slate-900/50 border-slate-700 text-white"
           />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-red-500 hover:text-red-400 transition-colors cursor-pointer"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
         <Select value={favoriteFilter} onValueChange={setFavoriteFilter}>
           <SelectTrigger className="w-full sm:w-[180px] bg-slate-900/50 border-slate-700 text-white">
@@ -106,6 +118,9 @@ export function TodosClient({
             </SelectItem>
             <SelectItem value="favorite" className="text-white">
               Favorites
+            </SelectItem>
+            <SelectItem value="unfavorite" className="text-white">
+              Unfavorites
             </SelectItem>
           </SelectContent>
         </Select>

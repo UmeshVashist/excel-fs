@@ -19,6 +19,7 @@ export default async function ShortcutsPage() {
     .from("shortcuts")
     .select("*")
     .eq("user_id", user.id)
+    .eq("is_deleted", false)
     .order("created_at", { ascending: false })
 
   return (

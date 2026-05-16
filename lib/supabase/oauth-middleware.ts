@@ -16,8 +16,9 @@ export async function checkOAuthUser() {
 
   // Get current user
   const {
-    data: { user },
+    data,
   } = await supabase.auth.getUser()
+  const user = data?.user
 
   // ❌ Not authenticated at all
   if (!user) {
@@ -91,8 +92,9 @@ export async function getAuthUser() {
   const supabase = await createClient()
 
   const {
-    data: { user },
+    data,
   } = await supabase.auth.getUser()
+  const user = data?.user
 
   if (!user) {
     redirect("/auth/login")

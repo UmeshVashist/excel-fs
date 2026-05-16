@@ -101,7 +101,7 @@ export default function ForgotPasswordPage() {
                   >
                     <Link
                       href="/auth/login"
-                      className="inline-flex h-12 items-center justify-center rounded-lg border border-slate-600/50 bg-slate-900/40 text-slate-300 transition-all duration-300 hover:bg-slate-800/60 hover:text-blue-400 hover:border-blue-400/50 hover:shadow-lg hover:shadow-blue-500/10 backdrop-blur-sm font-semibold"
+                      className="btn-custom btn-custom-green"
                     >
                       <ArrowLeft className="w-4 h-4 mr-2" />
                       Back to Login
@@ -189,7 +189,7 @@ export default function ForgotPasswordPage() {
                   >
                     <Link
                       href="/auth/login"
-                      className="inline-flex h-12 items-center justify-center rounded-lg border border-slate-600/50 bg-slate-900/40 text-slate-300 transition-all duration-300 hover:bg-slate-800/60 hover:text-blue-400 hover:border-blue-400/50 hover:shadow-lg hover:shadow-blue-500/10 backdrop-blur-sm font-semibold"
+                      className="btn-custom btn-custom-green"
                     >
                       <ArrowLeft className="w-4 h-4 mr-2" />
                       Back to Login

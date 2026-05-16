@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Plus } from "lucide-react"
+import { Search, Plus, X } from "lucide-react"
 import { ShortcutList } from "@/components/shortcut-list"
 import { ShortcutForm } from "@/components/shortcut-form"
 import { createClient } from "@/lib/supabase/client"
@@ -35,11 +35,17 @@ export function ShortcutsClient({
 
   const supabase = createClient()
 
+  // Sync state with props when server data refreshes
+  useEffect(() => {
+    setShortcuts(initialShortcuts)
+  }, [initialShortcuts])
+
   const loadShortcuts = async () => {
     const { data } = await supabase
       .from("shortcuts")
       .select("*")
       .eq("user_id", userId)
+      .eq("is_deleted", false)
       .order("created_at", { ascending: false })
     if (data) {
       setShortcuts(data)
@@ -57,6 +63,8 @@ export function ShortcutsClient({
     // Apply favorite filter
     if (filter === "favorites") {
       result = result.filter((s) => s.is_favorite)
+    } else if (filter === "unfavorites") {
+      result = result.filter((s) => !s.is_favorite)
     }
 
     setFilteredShortcuts(result)
@@ -91,9 +99,9 @@ export function ShortcutsClient({
         </div>
         <Button
           onClick={handleAdd}
-          className="w-full md:w-auto bg-slate-950/20 text-blue-400 border border-blue-500/50 hover:bg-blue-500/20 hover:border-blue-500 backdrop-blur-sm transition-all hover:shadow-lg hover:shadow-blue-600/50"
+          className="btn-custom btn-custom-cyan w-full sm:w-auto px-5 h-9 text-sm"
         >
-          <Plus className="mr-2 h-4 w-4" />
+          <Plus className="h-4 w-4 mr-2" />
           Add Shortcut
         </Button>
       </div>
@@ -106,8 +114,16 @@ export function ShortcutsClient({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             autoComplete="off"
-            className="pl-10 bg-slate-900/50 border-slate-700 text-white"
+            className="pl-10 pr-10 bg-slate-900/50 border-slate-700 text-white"
           />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-red-500 hover:text-red-400 transition-colors cursor-pointer"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
         <Select value={filter} onValueChange={setFilter}>
           <SelectTrigger className="w-full sm:w-[180px] bg-slate-900/50 border-slate-700 text-white">
@@ -119,6 +135,9 @@ export function ShortcutsClient({
             </SelectItem>
             <SelectItem value="favorites" className="text-white">
               Favorites
+            </SelectItem>
+            <SelectItem value="unfavorites" className="text-white">
+              Unfavorites
             </SelectItem>
           </SelectContent>
         </Select>

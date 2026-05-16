@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { LoadingIcon } from "@/components/loading-icon"
+import { logHistory } from "@/lib/sharing-actions"
 
 interface Shortcut {
   id?: string
@@ -62,7 +63,7 @@ export function ShortcutForm({
     try {
       if (shortcut?.id) {
         // Update existing shortcut
-        await supabase
+        const { error } = await supabase
           .from("shortcuts")
           .update({
             title,
@@ -72,15 +73,31 @@ export function ShortcutForm({
             updated_at: new Date().toISOString(),
           })
           .eq("id", shortcut.id)
+
+        if (!error) {
+          if (shortcut.title !== title) {
+            await logHistory({ resourceId: shortcut.id, resourceType: "shortcuts", action: "updated", fieldName: "Title", newValue: title })
+          }
+          if (shortcut.description !== description) {
+            await logHistory({ resourceId: shortcut.id, resourceType: "shortcuts", action: "updated", fieldName: "Description", newValue: description })
+          }
+          if (shortcut.shortcut !== shortcutText) {
+            await logHistory({ resourceId: shortcut.id, resourceType: "shortcuts", action: "updated", fieldName: "Shortcut", newValue: shortcutText })
+          }
+        }
       } else {
         // Create new shortcut
-        await supabase.from("shortcuts").insert({
+        const { data, error } = await supabase.from("shortcuts").insert({
           user_id: userId,
           title,
           description: description || null,
           shortcut: shortcutText,
           is_favorite: isFavorite,
-        })
+        }).select().single()
+
+        if (!error && data) {
+          await logHistory({ resourceId: data.id, resourceType: "shortcuts", action: "created", newValue: title })
+        }
       }
 
       onOpenChange(false)

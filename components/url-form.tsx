@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { LoadingIcon } from "@/components/loading-icon"
+import { logHistory } from "@/lib/sharing-actions"
 
 interface Url {
   id?: string
@@ -65,7 +66,7 @@ export function UrlForm({
     try {
       if (url?.id) {
         // Update existing URL
-        await supabase
+        const { error } = await supabase
           .from("urls")
           .update({
             title,
@@ -76,16 +77,32 @@ export function UrlForm({
             updated_at: new Date().toISOString(),
           })
           .eq("id", url.id)
+
+        if (!error) {
+          if (url.title !== title) {
+            await logHistory({ resourceId: url.id, resourceType: "urls", action: "updated", fieldName: "Title", newValue: title })
+          }
+          if (url.url !== urlText) {
+            await logHistory({ resourceId: url.id, resourceType: "urls", action: "updated", fieldName: "URL", newValue: urlText })
+          }
+          if (url.username !== username) {
+            await logHistory({ resourceId: url.id, resourceType: "urls", action: "updated", fieldName: "Username", newValue: username })
+          }
+        }
       } else {
         // Create new URL
-        await supabase.from("urls").insert({
+        const { data, error } = await supabase.from("urls").insert({
           user_id: userId,
           title,
           url: urlText,
           username: username || null,
           password: password || null,
           is_favorite: isFavorite,
-        })
+        }).select().single()
+
+        if (!error && data) {
+          await logHistory({ resourceId: data.id, resourceType: "urls", action: "created", newValue: title })
+        }
       }
 
       setTitle("")

@@ -8,12 +8,15 @@ import { Search, Plus, X } from "lucide-react"
 import { NotesList } from "@/components/notes-list"
 import { NoteForm } from "@/components/note-form"
 import { createClient } from "@/lib/supabase/client"
+import { getBatchSharedWith } from "@/lib/sharing-actions"
 
 interface Note {
   id: string
   title: string
   description: string | null
   is_favorite: boolean
+  user_id: string
+  shared_permission?: "view" | "edit"
 }
 
 export function NotesClient({
@@ -31,6 +34,7 @@ export function NotesClient({
   const [filter, setFilter] = useState("all")
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingNote, setEditingNote] = useState<Note | null>(null)
+  const [sharesInfo, setSharesInfo] = useState<Record<string, any[]>>({})
 
   const supabase = createClient()
 
@@ -39,15 +43,65 @@ export function NotesClient({
     setNotes(initialNotes)
   }, [initialNotes])
 
+  useEffect(() => {
+    loadShares()
+  }, [notes])
+
+  const loadShares = async () => {
+    const ownerNoteIds = notes
+      .filter(n => n.user_id === userId)
+      .map(n => n.id)
+    
+    if (ownerNoteIds.length > 0) {
+      const info = await getBatchSharedWith(ownerNoteIds, "notes")
+      setSharesInfo(info)
+    } else {
+      setSharesInfo({})
+    }
+  }
+
   const loadNotes = async () => {
-    const { data } = await supabase
-      .from("notes")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("is_deleted", false)
-      .order("created_at", { ascending: false })
-    if (data) {
-      setNotes(data)
+    try {
+      // Fetch notes where I am owner OR shared with me
+      const { data: ownedData } = await supabase
+        .from("notes")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("is_deleted", false)
+        .order("created_at", { ascending: false })
+
+      const { data: sharedItems, error: sharedError } = await supabase
+        .from("shared_items")
+        .select("resource_id, permission")
+        .eq("shared_with_id", userId)
+        .eq("resource_type", "notes")
+
+      if (sharedError && sharedError.code !== "PGRST205") throw sharedError
+
+      let allNotes = ownedData || []
+
+      if (sharedItems && sharedItems.length > 0) {
+        const sharedIds = sharedItems.map(s => s.resource_id)
+        const { data: sharedData } = await supabase
+          .from("notes")
+          .select("*")
+          .in("id", sharedIds)
+          .eq("is_deleted", false)
+        
+        if (sharedData) {
+          const sharedWithPermissions = sharedData.map(n => ({
+            ...n,
+            shared_permission: sharedItems.find(item => item.resource_id === n.id)?.permission
+          }))
+          allNotes = [...allNotes, ...sharedWithPermissions]
+        }
+      }
+
+      setNotes(allNotes.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()))
+    } catch (error: any) {
+      if (error.code !== "PGRST205") {
+        console.error("Error loading notes:", error)
+      }
     }
   }
 
@@ -64,10 +118,12 @@ export function NotesClient({
       result = result.filter((n) => n.is_favorite)
     } else if (filter === "unfavorites") {
       result = result.filter((n) => !n.is_favorite)
+    } else if (filter === "shared") {
+      result = result.filter((n) => sharesInfo[n.id] && sharesInfo[n.id].length > 0)
     }
 
     setFilteredNotes(result)
-  }, [searchQuery, filter, notes])
+  }, [searchQuery, filter, notes, sharesInfo])
 
   const handleAdd = () => {
     setEditingNote(null)
@@ -138,11 +194,14 @@ export function NotesClient({
             <SelectItem value="unfavorites" className="text-white">
               Unfavorites
             </SelectItem>
+            <SelectItem value="shared" className="text-white">
+              Shared
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      <NotesList notes={filteredNotes} onEdit={handleEdit} onUpdate={handleUpdate} />
+      <NotesList notes={filteredNotes} onEdit={handleEdit} onUpdate={handleUpdate} currentUserId={userId} sharesInfo={sharesInfo} />
 
       <NoteForm open={isFormOpen} onOpenChange={handleFormClose} note={editingNote} userId={userId} />
     </div>

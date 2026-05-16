@@ -8,6 +8,7 @@ import { Search, Plus, X } from "lucide-react"
 import { FormulaList } from "@/components/formula-list"
 import { FormulaForm } from "@/components/formula-form"
 import { createClient } from "@/lib/supabase/client"
+import { getBatchSharedWith } from "@/lib/sharing-actions"
 
 interface Formula {
   id: string
@@ -15,6 +16,8 @@ interface Formula {
   description: string | null
   formula: string
   is_favorite: boolean
+  user_id: string
+  shared_permission?: "view" | "edit"
 }
 
 export function FormulasClient({
@@ -32,6 +35,7 @@ export function FormulasClient({
   const [filter, setFilter] = useState("all")
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingFormula, setEditingFormula] = useState<Formula | null>(null)
+  const [sharesInfo, setSharesInfo] = useState<Record<string, any[]>>({})
 
   const supabase = createClient()
 
@@ -40,15 +44,65 @@ export function FormulasClient({
     setFormulas(initialFormulas)
   }, [initialFormulas])
 
+  useEffect(() => {
+    loadShares()
+  }, [formulas])
+
+  const loadShares = async () => {
+    const ownerFormulaIds = formulas
+      .filter(f => f.user_id === userId)
+      .map(f => f.id)
+    
+    if (ownerFormulaIds.length > 0) {
+      const info = await getBatchSharedWith(ownerFormulaIds, "formulas")
+      setSharesInfo(info)
+    } else {
+      setSharesInfo({})
+    }
+  }
+
   const loadFormulas = async () => {
-    const { data } = await supabase
-      .from("formulas")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("is_deleted", false)
-      .order("created_at", { ascending: false })
-    if (data) {
-      setFormulas(data)
+    try {
+      // Fetch formulas where I am owner OR shared with me
+      const { data: ownedData } = await supabase
+        .from("formulas")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("is_deleted", false)
+        .order("created_at", { ascending: false })
+
+      const { data: sharedItems, error: sharedError } = await supabase
+        .from("shared_items")
+        .select("resource_id, permission")
+        .eq("shared_with_id", userId)
+        .eq("resource_type", "formulas")
+
+      if (sharedError && sharedError.code !== "PGRST205") throw sharedError
+
+      let allFormulas = ownedData || []
+
+      if (sharedItems && sharedItems.length > 0) {
+        const sharedIds = sharedItems.map(s => s.resource_id)
+        const { data: sharedData } = await supabase
+          .from("formulas")
+          .select("*")
+          .in("id", sharedIds)
+          .eq("is_deleted", false)
+        
+        if (sharedData) {
+          const sharedWithPermissions = sharedData.map(f => ({
+            ...f,
+            shared_permission: sharedItems.find(s => s.resource_id === f.id)?.permission
+          }))
+          allFormulas = [...allFormulas, ...sharedWithPermissions]
+        }
+      }
+
+      setFormulas(allFormulas)
+    } catch (error: any) {
+      if (error.code !== "PGRST205") {
+        console.error("Error loading formulas:", error)
+      }
     }
   }
 
@@ -65,10 +119,12 @@ export function FormulasClient({
       result = result.filter((f) => f.is_favorite)
     } else if (filter === "unfavorites") {
       result = result.filter((f) => !f.is_favorite)
+    } else if (filter === "shared") {
+      result = result.filter((f) => sharesInfo[f.id] && sharesInfo[f.id].length > 0)
     }
 
     setFilteredFormulas(result)
-  }, [searchQuery, filter, formulas])
+  }, [searchQuery, filter, formulas, sharesInfo])
 
   const handleAdd = () => {
     setEditingFormula(null)
@@ -139,11 +195,14 @@ export function FormulasClient({
             <SelectItem value="unfavorites" className="text-white">
               Unfavorites
             </SelectItem>
+            <SelectItem value="shared" className="text-white">
+              Shared
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      <FormulaList formulas={filteredFormulas} onEdit={handleEdit} onUpdate={handleUpdate} />
+      <FormulaList formulas={filteredFormulas} onEdit={handleEdit} onUpdate={handleUpdate} currentUserId={userId} sharesInfo={sharesInfo} />
 
       <FormulaForm open={isFormOpen} onOpenChange={handleFormClose} formula={editingFormula} userId={userId} />
     </div>

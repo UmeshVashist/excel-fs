@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { LoadingIcon } from "@/components/loading-icon"
 import { cn } from "@/lib/utils"
+import { logHistory } from "@/lib/sharing-actions"
 
 interface Todo {
   id?: string
@@ -77,7 +78,7 @@ export function TodoForm({
     try {
       if (todo?.id) {
         // Update existing todo
-        await supabase
+        const { error } = await supabase
           .from("todos")
           .update({
             title,
@@ -88,16 +89,35 @@ export function TodoForm({
             updated_at: new Date().toISOString(),
           })
           .eq("id", todo.id)
+
+        if (!error) {
+          if (todo.title !== title) {
+            await logHistory({ resourceId: todo.id, resourceType: "todos", action: "updated", fieldName: "Title", newValue: title })
+          }
+          if (todo.description !== description) {
+            await logHistory({ resourceId: todo.id, resourceType: "todos", action: "updated", fieldName: "Description", newValue: description })
+          }
+          if (todo.status !== status) {
+            await logHistory({ resourceId: todo.id, resourceType: "todos", action: "updated", fieldName: "Status", newValue: status })
+          }
+          if (todo.remark !== remark) {
+            await logHistory({ resourceId: todo.id, resourceType: "todos", action: "updated", fieldName: "Remark", newValue: remark })
+          }
+        }
       } else {
         // Create new todo
-        await supabase.from("todos").insert({
+        const { data, error } = await supabase.from("todos").insert({
           user_id: userId,
           title,
           description: description || null,
           remark: remark || null,
           status,
           is_favorite: isFavorite,
-        })
+        }).select().single()
+
+        if (!error && data) {
+          await logHistory({ resourceId: data.id, resourceType: "todos", action: "created", newValue: title })
+        }
       }
 
       setTitle("")

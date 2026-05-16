@@ -54,6 +54,12 @@ const menuItems = [
     icon: CheckSquare,
     color: "text-pink-400",
   },
+  {
+    name: "Shared with Me",
+    href: "/shared",
+    icon: UserCircle,
+    color: "text-indigo-400",
+  },
   // {
   //   name: "Settings",
   //   href: "/settings",

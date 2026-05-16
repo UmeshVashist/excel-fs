@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { LoadingIcon } from "@/components/loading-icon"
+import { logHistory } from "@/lib/sharing-actions"
 
 interface Formula {
   id?: string
@@ -62,7 +63,7 @@ export function FormulaForm({
     try {
       if (formula?.id) {
         // Update existing formula
-        await supabase
+        const { error } = await supabase
           .from("formulas")
           .update({
             title,
@@ -72,15 +73,32 @@ export function FormulaForm({
             updated_at: new Date().toISOString(),
           })
           .eq("id", formula.id)
+
+        if (!error) {
+          // Log changes
+          if (formula.title !== title) {
+            await logHistory({ resourceId: formula.id, resourceType: "formulas", action: "updated", fieldName: "Title", newValue: title })
+          }
+          if (formula.description !== description) {
+            await logHistory({ resourceId: formula.id, resourceType: "formulas", action: "updated", fieldName: "Description", newValue: description })
+          }
+          if (formula.formula !== formulaText) {
+            await logHistory({ resourceId: formula.id, resourceType: "formulas", action: "updated", fieldName: "Formula", newValue: formulaText })
+          }
+        }
       } else {
         // Create new formula
-        await supabase.from("formulas").insert({
+        const { data, error } = await supabase.from("formulas").insert({
           user_id: userId,
           title,
           description: description || null,
           formula: formulaText,
           is_favorite: isFavorite,
-        })
+        }).select().single()
+
+        if (!error && data) {
+          await logHistory({ resourceId: data.id, resourceType: "formulas", action: "created", newValue: title })
+        }
       }
 
       onOpenChange(false)

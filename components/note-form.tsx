@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { LoadingIcon } from "@/components/loading-icon"
+import { logHistory } from "@/lib/sharing-actions"
 
 interface Note {
   id?: string
@@ -58,7 +59,7 @@ export function NoteForm({
     try {
       if (note?.id) {
         // Update existing note
-        await supabase
+        const { error } = await supabase
           .from("notes")
           .update({
             title,
@@ -67,14 +68,27 @@ export function NoteForm({
             updated_at: new Date().toISOString(),
           })
           .eq("id", note.id)
+
+        if (!error) {
+          if (note.title !== title) {
+            await logHistory({ resourceId: note.id, resourceType: "notes", action: "updated", fieldName: "Title", newValue: title })
+          }
+          if (note.description !== description) {
+            await logHistory({ resourceId: note.id, resourceType: "notes", action: "updated", fieldName: "Description", newValue: description })
+          }
+        }
       } else {
         // Create new note
-        await supabase.from("notes").insert({
+        const { data, error } = await supabase.from("notes").insert({
           user_id: userId,
           title,
           description: description || null,
           is_favorite: isFavorite,
-        })
+        }).select().single()
+
+        if (!error && data) {
+          await logHistory({ resourceId: data.id, resourceType: "notes", action: "created", newValue: title })
+        }
       }
 
       setTitle("")

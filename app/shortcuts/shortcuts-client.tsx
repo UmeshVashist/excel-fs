@@ -8,6 +8,7 @@ import { Search, Plus, X } from "lucide-react"
 import { ShortcutList } from "@/components/shortcut-list"
 import { ShortcutForm } from "@/components/shortcut-form"
 import { createClient } from "@/lib/supabase/client"
+import { getBatchSharedWith } from "@/lib/sharing-actions"
 
 interface Shortcut {
   id: string
@@ -15,6 +16,8 @@ interface Shortcut {
   description: string | null
   shortcut: string
   is_favorite: boolean
+  user_id: string
+  shared_permission?: "view" | "edit"
 }
 
 export function ShortcutsClient({
@@ -32,6 +35,7 @@ export function ShortcutsClient({
   const [filter, setFilter] = useState("all")
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingShortcut, setEditingShortcut] = useState<Shortcut | null>(null)
+  const [sharesInfo, setSharesInfo] = useState<Record<string, any[]>>({})
 
   const supabase = createClient()
 
@@ -40,15 +44,65 @@ export function ShortcutsClient({
     setShortcuts(initialShortcuts)
   }, [initialShortcuts])
 
+  useEffect(() => {
+    loadShares()
+  }, [shortcuts])
+
+  const loadShares = async () => {
+    const ownerShortcutIds = shortcuts
+      .filter(s => s.user_id === userId)
+      .map(s => s.id)
+    
+    if (ownerShortcutIds.length > 0) {
+      const info = await getBatchSharedWith(ownerShortcutIds, "shortcuts")
+      setSharesInfo(info)
+    } else {
+      setSharesInfo({})
+    }
+  }
+
   const loadShortcuts = async () => {
-    const { data } = await supabase
-      .from("shortcuts")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("is_deleted", false)
-      .order("created_at", { ascending: false })
-    if (data) {
-      setShortcuts(data)
+    try {
+      // Fetch shortcuts where I am owner OR shared with me
+      const { data: ownedData } = await supabase
+        .from("shortcuts")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("is_deleted", false)
+        .order("created_at", { ascending: false })
+
+      const { data: sharedItems, error: sharedError } = await supabase
+        .from("shared_items")
+        .select("resource_id, permission")
+        .eq("shared_with_id", userId)
+        .eq("resource_type", "shortcuts")
+
+      if (sharedError && sharedError.code !== "PGRST205") throw sharedError
+
+      let allShortcuts = ownedData || []
+
+      if (sharedItems && sharedItems.length > 0) {
+        const sharedIds = sharedItems.map(s => s.resource_id)
+        const { data: sharedData } = await supabase
+          .from("shortcuts")
+          .select("*")
+          .in("id", sharedIds)
+          .eq("is_deleted", false)
+        
+        if (sharedData) {
+          const sharedWithPermissions = sharedData.map(s => ({
+            ...s,
+            shared_permission: sharedItems.find(item => item.resource_id === s.id)?.permission
+          }))
+          allShortcuts = [...allShortcuts, ...sharedWithPermissions]
+        }
+      }
+
+      setShortcuts(allShortcuts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()))
+    } catch (error: any) {
+      if (error.code !== "PGRST205") {
+        console.error("Error loading shortcuts:", error)
+      }
     }
   }
 
@@ -65,10 +119,12 @@ export function ShortcutsClient({
       result = result.filter((s) => s.is_favorite)
     } else if (filter === "unfavorites") {
       result = result.filter((s) => !s.is_favorite)
+    } else if (filter === "shared") {
+      result = result.filter((s) => sharesInfo[s.id] && sharesInfo[s.id].length > 0)
     }
 
     setFilteredShortcuts(result)
-  }, [searchQuery, filter, shortcuts])
+  }, [searchQuery, filter, shortcuts, sharesInfo])
 
   const handleAdd = () => {
     setEditingShortcut(null)
@@ -139,11 +195,14 @@ export function ShortcutsClient({
             <SelectItem value="unfavorites" className="text-white">
               Unfavorites
             </SelectItem>
+            <SelectItem value="shared" className="text-white">
+              Shared
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      <ShortcutList shortcuts={filteredShortcuts} onEdit={handleEdit} onUpdate={handleUpdate} />
+      <ShortcutList shortcuts={filteredShortcuts} onEdit={handleEdit} onUpdate={handleUpdate} currentUserId={userId} sharesInfo={sharesInfo} />
 
       <ShortcutForm open={isFormOpen} onOpenChange={handleFormClose} shortcut={editingShortcut} userId={userId} />
     </div>

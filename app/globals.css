@@ -285,6 +285,11 @@
   background-color: rgba(34, 197, 94, 0.2) !important;
 }
 
+.card-hover-indigo:hover {
+  box-shadow: inset 0px 0px 25px #6366f1;
+  background-color: rgba(99, 102, 241, 0.2) !important;
+}
+
 /* Loading Icon Animation from Uiverse.io by dexter-st */
 .loader-wrapper {
   position: relative;

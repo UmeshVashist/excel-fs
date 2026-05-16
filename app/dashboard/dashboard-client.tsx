@@ -20,6 +20,7 @@ import { ShortcutForm } from "@/components/shortcut-form"
 import { NoteForm } from "@/components/note-form"
 import { UrlForm } from "@/components/url-form"
 import { TodoForm } from "@/components/todo-form"
+import { getBatchSharedWith } from "@/lib/sharing-actions"
 
 export function DashboardClient({
   initialFormulasCount,
@@ -27,6 +28,7 @@ export function DashboardClient({
   initialNotesCount,
   initialUrlsCount,
   initialTodosCount,
+  initialSharedCount,
   userId,
 }: {
   initialFormulasCount: number
@@ -34,6 +36,7 @@ export function DashboardClient({
   initialNotesCount: number
   initialUrlsCount: number
   initialTodosCount: number
+  initialSharedCount: number
   userId: string
 }) {
   const [searchQuery, setSearchQuery] = useState("")
@@ -45,6 +48,7 @@ export function DashboardClient({
     notes: [],
     urls: [],
     todos: [],
+    sharesInfo: {},
   })
   const [isLoading, setIsLoading] = useState(false)
   const [isSetupPopupOpen, setIsSetupPopupOpen] = useState(false)
@@ -58,19 +62,44 @@ export function DashboardClient({
 
   const handleUpdate = async () => {
     // Re-trigger the search to update the results
-    const results: any = { formulas: [], shortcuts: [], notes: [], urls: [], todos: [] }
+    const results: any = { formulas: [], shortcuts: [], notes: [], urls: [], todos: [], sharesInfo: {} }
     setIsLoading(true)
 
-    const applyFavoriteFilter = (query: any) => {
+    let sharedByMeIds: Record<string, string[]> = {
+      formulas: [],
+      shortcuts: [],
+      notes: [],
+      urls: [],
+      todos: []
+    }
+
+    if (favoriteFilter === "shared") {
+      const { data: shares } = await supabase
+        .from("shared_items")
+        .select("resource_id, resource_type")
+        .eq("owner_id", userId)
+      
+      if (shares) {
+        shares.forEach(s => {
+          if (sharedByMeIds[s.resource_type]) {
+            sharedByMeIds[s.resource_type].push(s.resource_id)
+          }
+        })
+      }
+    }
+
+    const applyFilters = (query: any, type: string) => {
       if (favoriteFilter === "favorites") {
-        return query.eq("is_favorite", true)
+        query = query.eq("is_favorite", true)
       } else if (favoriteFilter === "unfavorites") {
-        return query.eq("is_favorite", false)
+        query = query.eq("is_favorite", false)
+      } else if (favoriteFilter === "shared") {
+        query = query.in("id", sharedByMeIds[type] || [])
       }
       return query
     }
 
-    if (searchCategory === "all" || searchCategory === "formulas") {
+    if (searchCategory === "all" || searchCategory === "formulas" || searchCategory === "shared") {
       let query = supabase
         .from("formulas")
         .select("*")
@@ -78,12 +107,37 @@ export function DashboardClient({
         .eq("is_deleted", false)
         .ilike("title", `%${searchQuery}%`)
       
-      query = applyFavoriteFilter(query)
-      const { data } = await query.limit(5)
-      results.formulas = data || []
+      query = applyFilters(query, "formulas")
+      
+      // If category is "shared", we only want items shared with us, not owned ones
+      const { data: owned } = searchCategory === "shared" ? { data: [] } : await query.limit(5)
+      
+      // Fetch shared
+      let shared: any[] = []
+      if (favoriteFilter !== "shared") {
+        const { data: sharedItems } = await supabase
+          .from("shared_items")
+          .select("resource_id, permission")
+          .eq("shared_with_id", userId)
+          .eq("resource_type", "formulas")
+        
+        if (sharedItems && sharedItems.length > 0) {
+          const ids = sharedItems.map(s => s.resource_id)
+          let sharedQuery = supabase.from("formulas").select("*").in("id", ids).eq("is_deleted", false).ilike("title", `%${searchQuery}%`)
+          if (favoriteFilter === "favorites") sharedQuery = sharedQuery.eq("is_favorite", true)
+          else if (favoriteFilter === "unfavorites") sharedQuery = sharedQuery.eq("is_favorite", false)
+          const { data } = await sharedQuery
+          shared = (data || []).map(f => ({
+            ...f,
+            shared_permission: sharedItems.find(s => s.resource_id === f.id)?.permission
+          }))
+        }
+      }
+      
+      results.formulas = [...(owned || []), ...shared].slice(0, 5)
     }
 
-    if (searchCategory === "all" || searchCategory === "shortcuts") {
+    if (searchCategory === "all" || searchCategory === "shortcuts" || searchCategory === "shared") {
       let query = supabase
         .from("shortcuts")
         .select("*")
@@ -91,12 +145,35 @@ export function DashboardClient({
         .eq("is_deleted", false)
         .ilike("title", `%${searchQuery}%`)
       
-      query = applyFavoriteFilter(query)
-      const { data } = await query.limit(5)
-      results.shortcuts = data || []
+      query = applyFilters(query, "shortcuts")
+      const { data: owned } = searchCategory === "shared" ? { data: [] } : await query.limit(5)
+
+      // Fetch shared
+      let shared: any[] = []
+      if (favoriteFilter !== "shared") {
+        const { data: sharedItems } = await supabase
+          .from("shared_items")
+          .select("resource_id, permission")
+          .eq("shared_with_id", userId)
+          .eq("resource_type", "shortcuts")
+        
+        if (sharedItems && sharedItems.length > 0) {
+          const ids = sharedItems.map(s => s.resource_id)
+          let sharedQuery = supabase.from("shortcuts").select("*").in("id", ids).eq("is_deleted", false).ilike("title", `%${searchQuery}%`)
+          if (favoriteFilter === "favorites") sharedQuery = sharedQuery.eq("is_favorite", true)
+          else if (favoriteFilter === "unfavorites") sharedQuery = sharedQuery.eq("is_favorite", false)
+          const { data } = await sharedQuery
+          shared = (data || []).map(s => ({
+            ...s,
+            shared_permission: sharedItems.find(item => item.resource_id === s.id)?.permission
+          }))
+        }
+      }
+      
+      results.shortcuts = [...(owned || []), ...shared].slice(0, 5)
     }
 
-    if (searchCategory === "all" || searchCategory === "notes") {
+    if (searchCategory === "all" || searchCategory === "notes" || searchCategory === "shared") {
       let query = supabase
         .from("notes")
         .select("*")
@@ -104,12 +181,35 @@ export function DashboardClient({
         .eq("is_deleted", false)
         .ilike("title", `%${searchQuery}%`)
       
-      query = applyFavoriteFilter(query)
-      const { data } = await query.limit(5)
-      results.notes = data || []
+      query = applyFilters(query, "notes")
+      const { data: owned } = searchCategory === "shared" ? { data: [] } : await query.limit(5)
+
+      // Fetch shared
+      let shared: any[] = []
+      if (favoriteFilter !== "shared") {
+        const { data: sharedItems } = await supabase
+          .from("shared_items")
+          .select("resource_id, permission")
+          .eq("shared_with_id", userId)
+          .eq("resource_type", "notes")
+        
+        if (sharedItems && sharedItems.length > 0) {
+          const ids = sharedItems.map(s => s.resource_id)
+          let sharedQuery = supabase.from("notes").select("*").in("id", ids).eq("is_deleted", false).ilike("title", `%${searchQuery}%`)
+          if (favoriteFilter === "favorites") sharedQuery = sharedQuery.eq("is_favorite", true)
+          else if (favoriteFilter === "unfavorites") sharedQuery = sharedQuery.eq("is_favorite", false)
+          const { data } = await sharedQuery
+          shared = (data || []).map(n => ({
+            ...n,
+            shared_permission: sharedItems.find(item => item.resource_id === n.id)?.permission
+          }))
+        }
+      }
+      
+      results.notes = [...(owned || []), ...shared].slice(0, 5)
     }
 
-    if (searchCategory === "all" || searchCategory === "urls") {
+    if (searchCategory === "all" || searchCategory === "urls" || searchCategory === "shared") {
       let query = supabase
         .from("urls")
         .select("*")
@@ -117,12 +217,35 @@ export function DashboardClient({
         .eq("is_deleted", false)
         .ilike("title", `%${searchQuery}%`)
       
-      query = applyFavoriteFilter(query)
-      const { data } = await query.limit(5)
-      results.urls = data || []
+      query = applyFilters(query, "urls")
+      const { data: owned } = searchCategory === "shared" ? { data: [] } : await query.limit(5)
+
+      // Fetch shared
+      let shared: any[] = []
+      if (favoriteFilter !== "shared") {
+        const { data: sharedItems } = await supabase
+          .from("shared_items")
+          .select("resource_id, permission")
+          .eq("shared_with_id", userId)
+          .eq("resource_type", "urls")
+        
+        if (sharedItems && sharedItems.length > 0) {
+          const ids = sharedItems.map(s => s.resource_id)
+          let sharedQuery = supabase.from("urls").select("*").in("id", ids).eq("is_deleted", false).ilike("title", `%${searchQuery}%`)
+          if (favoriteFilter === "favorites") sharedQuery = sharedQuery.eq("is_favorite", true)
+          else if (favoriteFilter === "unfavorites") sharedQuery = sharedQuery.eq("is_favorite", false)
+          const { data } = await sharedQuery
+          shared = (data || []).map(u => ({
+            ...u,
+            shared_permission: sharedItems.find(item => item.resource_id === u.id)?.permission
+          }))
+        }
+      }
+      
+      results.urls = [...(owned || []), ...shared].slice(0, 5)
     }
 
-    if (searchCategory === "all" || searchCategory === "todos") {
+    if (searchCategory === "all" || searchCategory === "todos" || searchCategory === "shared") {
       let query = supabase
         .from("todos")
         .select("*")
@@ -130,9 +253,32 @@ export function DashboardClient({
         .eq("is_deleted", false)
         .ilike("title", `%${searchQuery}%`)
       
-      query = applyFavoriteFilter(query)
-      const { data } = await query.limit(5)
-      results.todos = data || []
+      query = applyFilters(query, "todos")
+      const { data: owned } = searchCategory === "shared" ? { data: [] } : await query.limit(5)
+
+      // Fetch shared
+      let shared: any[] = []
+      if (favoriteFilter !== "shared") {
+        const { data: sharedItems } = await supabase
+          .from("shared_items")
+          .select("resource_id, permission")
+          .eq("shared_with_id", userId)
+          .eq("resource_type", "todos")
+        
+        if (sharedItems && sharedItems.length > 0) {
+          const ids = sharedItems.map(s => s.resource_id)
+          let sharedQuery = supabase.from("todos").select("*").in("id", ids).eq("is_deleted", false).ilike("title", `%${searchQuery}%`)
+          if (favoriteFilter === "favorites") sharedQuery = sharedQuery.eq("is_favorite", true)
+          else if (favoriteFilter === "unfavorites") sharedQuery = sharedQuery.eq("is_favorite", false)
+          const { data } = await sharedQuery
+          shared = (data || []).map(t => ({
+            ...t,
+            shared_permission: sharedItems.find(item => item.resource_id === t.id)?.permission
+          }))
+        }
+      }
+      
+      results.todos = [...(owned || []), ...shared].slice(0, 5)
     }
 
     setSearchResults(results)
@@ -198,11 +344,32 @@ export function DashboardClient({
           .from("formulas")
           .select("*")
           .eq("user_id", userId)
+          .eq("is_deleted", false)
           .ilike("title", `%${searchQuery}%`)
         
         query = applyFavoriteFilter(query)
-        const { data } = await query.limit(5)
-        results.formulas = data || []
+        const { data: owned } = await query.limit(5)
+
+        // Fetch shared
+        const { data: sharedItems } = await supabase
+          .from("shared_items")
+          .select("resource_id, permission")
+          .eq("shared_with_id", userId)
+          .eq("resource_type", "formulas")
+        
+        let shared: any[] = []
+        if (sharedItems && sharedItems.length > 0) {
+          const ids = sharedItems.map(s => s.resource_id)
+          let sharedQuery = supabase.from("formulas").select("*").in("id", ids).eq("is_deleted", false).ilike("title", `%${searchQuery}%`)
+          sharedQuery = applyFavoriteFilter(sharedQuery)
+          const { data } = await sharedQuery
+          shared = (data || []).map(f => ({
+            ...f,
+            shared_permission: sharedItems.find(s => s.resource_id === f.id)?.permission
+          }))
+        }
+        
+        results.formulas = [...(owned || []), ...shared].slice(0, 5)
       }
 
       if (searchCategory === "all" || searchCategory === "shortcuts") {
@@ -210,11 +377,32 @@ export function DashboardClient({
           .from("shortcuts")
           .select("*")
           .eq("user_id", userId)
+          .eq("is_deleted", false)
           .ilike("title", `%${searchQuery}%`)
         
         query = applyFavoriteFilter(query)
-        const { data } = await query.limit(5)
-        results.shortcuts = data || []
+        const { data: owned } = await query.limit(5)
+
+        // Fetch shared
+        const { data: sharedItems } = await supabase
+          .from("shared_items")
+          .select("resource_id, permission")
+          .eq("shared_with_id", userId)
+          .eq("resource_type", "shortcuts")
+        
+        let shared: any[] = []
+        if (sharedItems && sharedItems.length > 0) {
+          const ids = sharedItems.map(s => s.resource_id)
+          let sharedQuery = supabase.from("shortcuts").select("*").in("id", ids).eq("is_deleted", false).ilike("title", `%${searchQuery}%`)
+          sharedQuery = applyFavoriteFilter(sharedQuery)
+          const { data } = await sharedQuery
+          shared = (data || []).map(s => ({
+            ...s,
+            shared_permission: sharedItems.find(item => item.resource_id === s.id)?.permission
+          }))
+        }
+        
+        results.shortcuts = [...(owned || []), ...shared].slice(0, 5)
       }
 
       if (searchCategory === "all" || searchCategory === "notes") {
@@ -222,11 +410,32 @@ export function DashboardClient({
           .from("notes")
           .select("*")
           .eq("user_id", userId)
+          .eq("is_deleted", false)
           .ilike("title", `%${searchQuery}%`)
         
         query = applyFavoriteFilter(query)
-        const { data } = await query.limit(5)
-        results.notes = data || []
+        const { data: owned } = await query.limit(5)
+
+        // Fetch shared
+        const { data: sharedItems } = await supabase
+          .from("shared_items")
+          .select("resource_id, permission")
+          .eq("shared_with_id", userId)
+          .eq("resource_type", "notes")
+        
+        let shared: any[] = []
+        if (sharedItems && sharedItems.length > 0) {
+          const ids = sharedItems.map(s => s.resource_id)
+          let sharedQuery = supabase.from("notes").select("*").in("id", ids).eq("is_deleted", false).ilike("title", `%${searchQuery}%`)
+          sharedQuery = applyFavoriteFilter(sharedQuery)
+          const { data } = await sharedQuery
+          shared = (data || []).map(n => ({
+            ...n,
+            shared_permission: sharedItems.find(item => item.resource_id === n.id)?.permission
+          }))
+        }
+        
+        results.notes = [...(owned || []), ...shared].slice(0, 5)
       }
 
       if (searchCategory === "all" || searchCategory === "urls") {
@@ -234,11 +443,32 @@ export function DashboardClient({
           .from("urls")
           .select("*")
           .eq("user_id", userId)
+          .eq("is_deleted", false)
           .ilike("title", `%${searchQuery}%`)
         
         query = applyFavoriteFilter(query)
-        const { data } = await query.limit(5)
-        results.urls = data || []
+        const { data: owned } = await query.limit(5)
+
+        // Fetch shared
+        const { data: sharedItems } = await supabase
+          .from("shared_items")
+          .select("resource_id, permission")
+          .eq("shared_with_id", userId)
+          .eq("resource_type", "urls")
+        
+        let shared: any[] = []
+        if (sharedItems && sharedItems.length > 0) {
+          const ids = sharedItems.map(s => s.resource_id)
+          let sharedQuery = supabase.from("urls").select("*").in("id", ids).eq("is_deleted", false).ilike("title", `%${searchQuery}%`)
+          sharedQuery = applyFavoriteFilter(sharedQuery)
+          const { data } = await sharedQuery
+          shared = (data || []).map(u => ({
+            ...u,
+            shared_permission: sharedItems.find(item => item.resource_id === u.id)?.permission
+          }))
+        }
+        
+        results.urls = [...(owned || []), ...shared].slice(0, 5)
       }
 
       if (searchCategory === "all" || searchCategory === "todos") {
@@ -246,11 +476,38 @@ export function DashboardClient({
           .from("todos")
           .select("*")
           .eq("user_id", userId)
+          .eq("is_deleted", false)
           .ilike("title", `%${searchQuery}%`)
         
         query = applyFavoriteFilter(query)
-        const { data } = await query.limit(5)
-        results.todos = data || []
+        const { data: owned } = await query.limit(5)
+
+        // Fetch shared
+        const { data: sharedItems } = await supabase
+          .from("shared_items")
+          .select("resource_id, permission")
+          .eq("shared_with_id", userId)
+          .eq("resource_type", "todos")
+        
+        let shared: any[] = []
+        if (sharedItems && sharedItems.length > 0) {
+          const ids = sharedItems.map(s => s.resource_id)
+          let sharedQuery = supabase.from("todos").select("*").in("id", ids).eq("is_deleted", false).ilike("title", `%${searchQuery}%`)
+          sharedQuery = applyFavoriteFilter(sharedQuery)
+          const { data } = await sharedQuery
+          shared = (data || []).map(t => ({
+            ...t,
+            shared_permission: sharedItems.find(item => item.resource_id === t.id)?.permission
+          }))
+        }
+        
+        results.todos = [...(owned || []), ...shared].slice(0, 5)
+
+        // Fetch shares info for todos
+        const ownedIds = (owned || []).map(t => t.id)
+        if (ownedIds.length > 0) {
+          results.sharesInfo = await getBatchSharedWith(ownedIds, "todos")
+        }
       }
 
       setSearchResults(results)
@@ -262,7 +519,7 @@ export function DashboardClient({
 
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <Link href="/formulas" className="block">
           <Card className="border text-center border-cyan-500 bg-white/5 rounded-lg backdrop-blur-2xl transition-all duration-1000 card-hover-cyan hover:scale-105 h-full">
             <CardHeader className="pb-3">
@@ -307,6 +564,15 @@ export function DashboardClient({
             </CardHeader>
           </Card>
         </Link>
+
+        <Link href="/shared" className="block">
+          <Card className="border text-center border-indigo-500 bg-white/5 rounded-lg backdrop-blur-2xl transition-all duration-1000 card-hover-indigo hover:scale-105 h-full">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-indigo-500 text-lg">Shared with me</CardTitle>
+              <CardDescription className="text-indigo-500 text-2xl font-bold">{initialSharedCount}</CardDescription>
+            </CardHeader>
+          </Card>
+        </Link>
       </div>
 
       <Card className="border text-center  bg-white/5 rounded-lg backdrop-blur-2xl transition-all hover:shadow-lg hover:shadow-white/10">
@@ -340,20 +606,23 @@ export function DashboardClient({
                     <SelectItem value="all" className="text-cyan-500 hover:cursor-pointer">
                       All Items
                     </SelectItem>
-                    <SelectItem value="notes" className="text-white hover:cursor-pointer">
+                    <SelectItem value="notes" className="text-green-500 hover:cursor-pointer">
                       Notes
                     </SelectItem>
-                    <SelectItem value="urls" className="text-white hover:cursor-pointer">
+                    <SelectItem value="urls" className="text-orange-500 hover:cursor-pointer">
                       URLs
                     </SelectItem>
-                    <SelectItem value="todos" className="text-white hover:cursor-pointer">
+                    <SelectItem value="todos" className="text-cyan-500 hover:cursor-pointer">
                       Todos
                     </SelectItem>
-                    <SelectItem value="formulas" className="text-white hover:cursor-pointer">
+                    <SelectItem value="formulas" className="text-cyan-500 hover:cursor-pointer">
                       Formulas
                     </SelectItem>
-                    <SelectItem value="shortcuts" className="text-white hover:cursor-pointer">
+                    <SelectItem value="shortcuts" className="text-orange-500 hover:cursor-pointer">
                       Shortcuts
+                    </SelectItem>
+                    <SelectItem value="shared" className="text-indigo-500 hover:cursor-pointer">
+                      Shared
                     </SelectItem>
                   </SelectContent>
                 </Select>
@@ -366,11 +635,14 @@ export function DashboardClient({
                     <SelectItem value="all" className="text-white hover:cursor-pointer">
                       All
                     </SelectItem>
-                    <SelectItem value="favorites" className="text-white hover:cursor-pointer">
+                    <SelectItem value="favorites" className="text-orange-500 hover:cursor-pointer">
                       Favorites
                     </SelectItem>
-                    <SelectItem value="unfavorites" className="text-white hover:cursor-pointer">
+                    <SelectItem value="unfavorites" className="text-green-500 hover:cursor-pointer">
                       Unfavorites
+                    </SelectItem>
+                    <SelectItem value="shared" className="text-indigo-500 hover:cursor-pointer">
+                      Shared
                     </SelectItem>
                   </SelectContent>
                 </Select>
@@ -387,14 +659,14 @@ export function DashboardClient({
           {searchResults.notes.length > 0 && (
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-orange-500">Notes</h3>
-              <NotesList notes={searchResults.notes} onEdit={(note) => handleEdit("note", note)} onUpdate={handleUpdate} />
+              <NotesList notes={searchResults.notes} onEdit={(note) => handleEdit("note", note)} onUpdate={handleUpdate} currentUserId={userId} />
             </div>
           )}
 
           {searchResults.urls.length > 0 && (
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-orange-500">URLs</h3>
-              <UrlsList urls={searchResults.urls} onEdit={(url) => handleEdit("url", url)} onUpdate={handleUpdate} />
+              <UrlsList urls={searchResults.urls} onEdit={(url) => handleEdit("url", url)} onUpdate={handleUpdate} currentUserId={userId} />
             </div>
           )}
 
@@ -408,6 +680,8 @@ export function DashboardClient({
                     todo={todo} 
                     onEdit={(todo) => handleEdit("todo", todo)} 
                     onUpdate={handleUpdate} 
+                    currentUserId={userId}
+                    initialShares={searchResults.sharesInfo?.[todo.id] || []}
                   />
                 ))}
               </div>
@@ -417,14 +691,14 @@ export function DashboardClient({
           {searchResults.formulas.length > 0 && (
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-orange-500">Formulas</h3>
-              <FormulaList formulas={searchResults.formulas} onEdit={(formula) => handleEdit("formula", formula)} onUpdate={handleUpdate} />
+              <FormulaList formulas={searchResults.formulas} onEdit={(formula) => handleEdit("formula", formula)} onUpdate={handleUpdate} currentUserId={userId} />
             </div>
           )}
 
           {searchResults.shortcuts.length > 0 && (
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-orange-500">Shortcuts</h3>
-              <ShortcutList shortcuts={searchResults.shortcuts} onEdit={(shortcut) => handleEdit("shortcut", shortcut)} onUpdate={handleUpdate} />
+              <ShortcutList shortcuts={searchResults.shortcuts} onEdit={(shortcut) => handleEdit("shortcut", shortcut)} onUpdate={handleUpdate} currentUserId={userId} />
             </div>
           )}
 

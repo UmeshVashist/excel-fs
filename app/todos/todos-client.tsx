@@ -10,8 +10,10 @@ import { TodoForm } from "@/components/todo-form"
 import useSWR from "swr"
 import { createClient } from "@/lib/supabase/client"
 import { SidebarProvider } from "@/components/sidebar-provider"
+import { getBatchSharedWith } from "@/lib/sharing-actions"
 
 const supabase = createClient()
+const EMPTY_ARRAY: any[] = []
 
 interface Todo {
   id: string
@@ -32,23 +34,89 @@ export function TodosClient({
   userId: string
   user?: any
 }) {
-  const { data: todos, mutate } = useSWR(
+  const { data, mutate } = useSWR(
     `todos-${userId}`,
     async () => {
-      const { data } = await supabase
-        .from("todos")
-        .select("*")
-        .eq("user_id", userId)
-        .eq("is_deleted", false)
-        .order("created_at", { ascending: false })
-      return data as Todo[]
+      try {
+        // Fetch owned todos
+        const { data: ownedData, error: ownedError } = await supabase
+          .from("todos")
+          .select("*")
+          .eq("user_id", userId)
+          .eq("is_deleted", false)
+        
+        if (ownedError) {
+          console.error("Error fetching owned todos:", ownedError)
+          throw ownedError
+        }
+
+        // Fetch shared todos - Step 1: Get shared items
+        const { data: sharedItems, error: sharedItemsError } = await supabase
+          .from("shared_items")
+          .select("resource_id, permission")
+          .eq("shared_with_id", userId)
+          .eq("resource_type", "todos")
+        
+        if (sharedItemsError && sharedItemsError.code !== "PGRST205") {
+          console.error("Error fetching shared items:", sharedItemsError)
+          throw sharedItemsError
+        }
+
+        let sharedTodos: any[] = []
+        if (sharedItems && sharedItems.length > 0) {
+          // Step 2: Get the actual todos
+          const sharedIds = sharedItems.map(item => item.resource_id)
+          const { data: sharedTodosData, error: sharedTodosError } = await supabase
+            .from("todos")
+            .select("*")
+            .in("id", sharedIds)
+            .eq("is_deleted", false)
+          
+          if (sharedTodosError) {
+            console.error("Error fetching shared todos details:", sharedTodosError)
+            throw sharedTodosError
+          }
+
+          sharedTodos = (sharedTodosData || []).map(todo => ({
+            ...todo,
+            shared_permission: sharedItems.find(s => s.resource_id === todo.id)?.permission
+          }))
+        }
+
+        const allTodos = [...(ownedData || []), ...sharedTodos]
+        const sortedTodos = allTodos.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) as Todo[]
+
+        // Fetch shares info for owned todos
+        const ownedIds = (ownedData || []).map(t => t.id)
+        let sharesInfo = {}
+        if (ownedIds.length > 0) {
+          sharesInfo = await getBatchSharedWith(ownedIds, "todos")
+        }
+
+        return {
+          todos: sortedTodos,
+          sharesInfo
+        }
+      } catch (error: any) {
+        console.error("Detailed load error:", {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+          error
+        })
+        return { todos: [], sharesInfo: {} }
+      }
     },
-    { fallbackData: initialTodos },
+    { fallbackData: { todos: initialTodos, sharesInfo: {} } },
   )
+
+  const { todos = EMPTY_ARRAY, sharesInfo = {} as any } = data || {}
 
   const [searchQuery, setSearchQuery] = useState("")
   const [favoriteFilter, setFavoriteFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
+  const [sharedFilter, setSharedFilter] = useState("all")
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null)
 
@@ -63,14 +131,15 @@ export function TodosClient({
     mutate()
   }
 
-  const filteredTodos = (todos || []).filter((todo) => {
+  const filteredTodos = (todos as Todo[]).filter((todo) => {
     const matchesSearch = todo.title.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesFavorite =
       favoriteFilter === "all" ||
       (favoriteFilter === "favorite" && todo.is_favorite) ||
       (favoriteFilter === "unfavorite" && !todo.is_favorite)
     const matchesStatus = statusFilter === "all" || todo.status === statusFilter
-    return matchesSearch && matchesFavorite && matchesStatus
+    const matchesShared = sharedFilter === "all" || (sharedFilter === "shared" && sharesInfo[todo.id] && sharesInfo[todo.id].length > 0)
+    return matchesSearch && matchesFavorite && matchesStatus && matchesShared
   })
 
   return (
@@ -143,18 +212,38 @@ export function TodosClient({
             </SelectItem>
           </SelectContent>
         </Select>
+        <Select value={sharedFilter} onValueChange={setSharedFilter}>
+          <SelectTrigger className="w-full sm:w-[180px] bg-slate-900/50 border-slate-700 text-white">
+            <SelectValue placeholder="Shared" />
+          </SelectTrigger>
+          <SelectContent className="bg-slate-800 border-slate-700">
+            <SelectItem value="all" className="text-white">
+              All
+            </SelectItem>
+            <SelectItem value="shared" className="text-white">
+              Shared
+            </SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-4">
         {filteredTodos.length === 0 ? (
           <div className="text-center py-12 text-slate-400">
-            {searchQuery || favoriteFilter !== "all" || statusFilter !== "all"
+            {searchQuery || favoriteFilter !== "all" || statusFilter !== "all" || sharedFilter !== "all"
               ? "No todos found matching your filters"
               : "No todos found. Add your first todo to get started!"}
           </div>
         ) : (
           filteredTodos.map((todo) => (
-            <TodoItem key={todo.id} todo={todo} onEdit={handleEdit} onUpdate={() => mutate()} />
+            <TodoItem 
+              key={todo.id} 
+              todo={todo} 
+              onEdit={handleEdit} 
+              onUpdate={() => mutate()} 
+              currentUserId={userId} 
+              initialShares={sharesInfo[todo.id] || []}
+            />
           ))
         )}
       </div>

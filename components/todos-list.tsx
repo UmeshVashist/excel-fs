@@ -20,7 +20,7 @@ interface Todo {
   title: string
   description: string | null
   remark?: string | null
-  status: "pending" | "in-progress" | "complete"
+  status: "pending" | "in-process" | "complete"
   is_favorite: boolean
   created_at: string
   updated_at: string
@@ -161,7 +161,7 @@ export function TodosList({ initialTodos, userId }: { initialTodos: Todo[]; user
               <SelectContent className="bg-slate-800 border-slate-700 text-white">
                 <SelectItem value="all">All</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="in-progress">In Progress</SelectItem>
+                <SelectItem value="in-process">In Progress</SelectItem>
                 <SelectItem value="complete">Complete</SelectItem>
               </SelectContent>
             </Select>

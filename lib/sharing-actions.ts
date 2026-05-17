@@ -57,6 +57,36 @@ export async function shareItem(params: {
   return { success: true }
 }
 
+export async function updateSharePermission(shareId: string, permission: "view" | "edit") {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("shared_items")
+    .update({ permission })
+    .eq("id", shareId)
+
+  if (error) {
+    console.error("Update share permission error:", error)
+    return { error: error.message }
+  }
+
+  return { success: true }
+}
+
+export async function removeShare(shareId: string) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("shared_items")
+    .delete()
+    .eq("id", shareId)
+
+  if (error) {
+    console.error("Remove share error:", error)
+    return { error: error.message }
+  }
+
+  return { success: true }
+}
+
 export async function logHistory(params: {
   resourceId: string
   resourceType: string
@@ -64,25 +94,45 @@ export async function logHistory(params: {
   fieldName?: string
   oldValue?: string
   newValue?: string
+  userId?: string // Optional override
 }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  try {
+    const supabase = createServiceRoleClient()
+    let finalUserId = params.userId
 
-  if (!user) return
+    if (!finalUserId) {
+      const standardSupabase = await createClient()
+      const { data: { user } } = await standardSupabase.auth.getUser()
+      if (user) {
+        finalUserId = user.id
+      }
+    }
 
-  await supabase.from("item_history").insert({
-    resource_id: params.resourceId,
-    resource_type: params.resourceType,
-    user_id: user.id,
-    action: params.action,
-    field_name: params.fieldName,
-    old_value: params.oldValue,
-    new_value: params.newValue
-  })
+    if (!finalUserId) {
+      console.warn("Log history skipped: No user ID found")
+      return
+    }
+
+    const { error } = await supabase.from("item_history").insert({
+      resource_id: params.resourceId,
+      resource_type: params.resourceType,
+      user_id: finalUserId,
+      action: params.action,
+      field_name: params.fieldName,
+      old_value: params.oldValue,
+      new_value: params.newValue
+    })
+
+    if (error) {
+      console.error("Log history database error:", error)
+    }
+  } catch (e) {
+    console.error("Log history exception:", e)
+  }
 }
 
 export async function getSharedWith(resourceId: string, resourceType: string) {
-  const supabase = await createClient()
+  const supabase = createServiceRoleClient()
   
   const { data, error } = await supabase
     .from("shared_items")
@@ -90,7 +140,7 @@ export async function getSharedWith(resourceId: string, resourceType: string) {
       id,
       created_at,
       permission,
-      profiles:shared_with_id (
+      profiles!shared_with_id (
         username,
         email
       )
@@ -99,20 +149,21 @@ export async function getSharedWith(resourceId: string, resourceType: string) {
     .eq("resource_type", resourceType)
 
   if (error) {
-    // If table doesn't exist yet, don't spam the console
-    if (error.code !== "PGRST205") {
-      console.error("Get shared with error:", error)
-    }
+    console.error("Get shared with error:", error)
     return []
   }
 
-  return data || []
+  // Map the join result to a flatter structure
+  return (data || []).map(item => ({
+    ...item,
+    profiles: (item as any).profiles
+  }))
 }
 
 export async function getBatchSharedWith(resourceIds: string[], resourceType: string) {
   if (!resourceIds.length) return {}
   
-  const supabase = await createClient()
+  const supabase = createServiceRoleClient()
   
   const { data, error } = await supabase
     .from("shared_items")
@@ -121,7 +172,7 @@ export async function getBatchSharedWith(resourceIds: string[], resourceType: st
       resource_id,
       created_at,
       permission,
-      profiles:shared_with_id (
+      profiles!shared_with_id (
         username,
         email
       )
@@ -130,9 +181,7 @@ export async function getBatchSharedWith(resourceIds: string[], resourceType: st
     .eq("resource_type", resourceType)
 
   if (error) {
-    if (error.code !== "PGRST205") {
-      console.error("Get batch shared with error:", error)
-    }
+    console.error("Get batch shared with error:", error)
     return {}
   }
 
@@ -142,14 +191,17 @@ export async function getBatchSharedWith(resourceIds: string[], resourceType: st
     if (!result[item.resource_id]) {
       result[item.resource_id] = []
     }
-    result[item.resource_id].push(item)
+    result[item.resource_id].push({
+      ...item,
+      profiles: (item as any).profiles
+    })
   })
   
   return result
 }
 
 export async function getItemHistory(resourceId: string, resourceType: string) {
-  const supabase = await createClient()
+  const supabase = createServiceRoleClient()
   
   const { data, error } = await supabase
     .from("item_history")
@@ -160,7 +212,7 @@ export async function getItemHistory(resourceId: string, resourceType: string) {
       old_value,
       new_value,
       created_at,
-      profiles:user_id (
+      profiles!user_id (
         username,
         email
       )
@@ -170,12 +222,12 @@ export async function getItemHistory(resourceId: string, resourceType: string) {
     .order("created_at", { ascending: false })
 
   if (error) {
-    // If table doesn't exist yet, don't spam the console
-    if (error.code !== "PGRST205") {
-      console.error("Get item history error:", error)
-    }
+    console.error("Get item history error:", error)
     return []
   }
 
-  return data || []
+  return (data || []).map(item => ({
+    ...item,
+    profiles: (item as any).profiles
+  }))
 }

@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Star, Edit2, Trash2, Copy, Check, Share2, History, Users } from "lucide-react"
+import { useState, useEffect, useMemo } from "react"
+import { Star, Edit2, Trash2, Copy, Check, Share2, History, Users, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
@@ -10,17 +10,20 @@ import { ShareModal } from "./share-modal"
 import { HistoryModal } from "./history-modal"
 import { getSharedWith } from "@/lib/sharing-actions"
 
+import { format } from "date-fns"
+
 interface Todo {
   id: string
   title: string
   description: string | null
   remark?: string | null
-  status: "pending" | "in-progress" | "complete"
+  status: "pending" | "in-process" | "complete"
   is_favorite: boolean
   user_id: string
   shared_permission?: "view" | "edit"
   created_at: string
   updated_at: string
+  received_at?: string
 }
 
 const EMPTY_SHARES: any[] = []
@@ -44,7 +47,7 @@ export function TodoItem({
   const [historyModalOpen, setHistoryModalOpen] = useState(false)
   const [shares, setShares] = useState<any[]>(initialShares)
   const router = useRouter()
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   const isOwner = todo.user_id === currentUserId
   const canEdit = isOwner || todo.shared_permission === "edit"
@@ -93,7 +96,7 @@ export function TodoItem({
     }
   }
 
-  const handleStatusChange = async (newStatus: "pending" | "in-progress" | "complete") => {
+  const handleStatusChange = async (newStatus: "pending" | "in-process" | "complete") => {
     const { error } = await supabase.from("todos").update({ status: newStatus }).eq("id", todo.id)
     if (!error) {
       onUpdate()
@@ -114,7 +117,7 @@ export function TodoItem({
     switch (status) {
       case "pending":
         return "text-yellow-500 border-yellow-500"
-      case "in-progress":
+      case "in-process":
         return "text-blue-500 border-blue-500"
       case "complete":
         return "text-green-500 border-green-500"
@@ -127,7 +130,7 @@ export function TodoItem({
     switch (status) {
       case "pending":
         return "Pending"
-      case "in-progress":
+      case "in-process":
         return "In Progress"
       case "complete":
         return "Complete"
@@ -159,66 +162,83 @@ export function TodoItem({
           </div>
 
           {isOwner && shares.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-2">
-              {shares.map((share: any) => (
-                <div key={share.id} className="text-[10px] text-slate-400 flex items-center gap-1 bg-white/5 px-1.5 py-0.5 rounded border border-white/5">
-                  <Users className="h-2 w-2" />
-                  {share.profiles?.username || share.profiles?.email}
-                  <span className="text-slate-600">({share.permission})</span>
-                </div>
-              ))}
+            <div className="mt-3 flex items-center gap-2">
+              <span className="text-[10px] font-semibold text-indigo-400 uppercase tracking-wider">Shared with:</span>
+              <div className="flex -space-x-2 overflow-hidden">
+                {shares.slice(0, 3).map((share: any) => (
+                  <div 
+                    key={share.id} 
+                    className="inline-block h-6 w-6 rounded-full ring-2 ring-slate-900 bg-slate-800 flex items-center justify-center border border-slate-700"
+                    title={`${share.profiles?.username || share.profiles?.email} (${share.permission})`}
+                  >
+                    <User className="h-3 w-3 text-slate-400" />
+                  </div>
+                ))}
+                {shares.length > 3 && (
+                  <div className="flex items-center justify-center h-6 w-6 rounded-full ring-2 ring-slate-900 bg-slate-800 border border-slate-700 text-[10px] text-slate-400">
+                    +{shares.length - 3}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleFavoriteToggle}
-            className="btn-custom btn-custom-amber h-9 w-9 px-0 rounded-lg"
-          >
-            <Star className={cn("h-4 w-4 text-white", isFavorite && "fill-white")} />
-          </Button>
-
-          {isOwner && (
+        <div className="flex flex-col items-end gap-2 shrink-0">
+          {todo.received_at && (
+            <span className="text-[10px] text-indigo-400 font-medium bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
+              Received on: {format(new Date(todo.received_at), "MMM d, yyyy h:mm a")}
+            </span>
+          )}
+          <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setShareModalOpen(true)}
+              onClick={handleFavoriteToggle}
+              className="btn-custom btn-custom-amber h-9 w-9 px-0 rounded-lg"
+            >
+              <Star className={cn("h-4 w-4 text-white", isFavorite && "fill-white")} />
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setHistoryModalOpen(true)}
               className="btn-custom btn-custom-cyan h-9 w-9 px-0 rounded-lg"
             >
-              <Share2 className="h-4 w-4 text-white" />
+              <History className="h-4 w-4 text-white" />
             </Button>
-          )}
 
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setHistoryModalOpen(true)}
-            className="btn-custom btn-custom-cyan h-9 w-9 px-0 rounded-lg"
-          >
-            <History className="h-4 w-4 text-white" />
-          </Button>
+            {isOwner && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShareModalOpen(true)}
+                className="btn-custom btn-custom-cyan h-9 w-9 px-0 rounded-lg"
+              >
+                <Share2 className="h-4 w-4 text-white" />
+              </Button>
+            )}
 
-          {canEdit && (
+            {canEdit && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onEdit(todo)}
+                className="btn-custom btn-custom-purple h-9 w-9 px-0 rounded-lg"
+              >
+                <Edit2 className="h-4 w-4 text-white" />
+              </Button>
+            )}
+
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => onEdit(todo)}
-              className="btn-custom btn-custom-purple h-9 w-9 px-0 rounded-lg"
+              onClick={handleDelete}
+              className="btn-custom btn-custom-red h-9 w-9 px-0 rounded-lg"
             >
-              <Edit2 className="h-4 w-4 text-white" />
+              <Trash2 className="h-4 w-4 text-white" />
             </Button>
-          )}
-
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleDelete}
-            className="btn-custom btn-custom-red h-9 w-9 px-0 rounded-lg"
-          >
-            <Trash2 className="h-4 w-4 text-white" />
-          </Button>
+          </div>
         </div>
       </div>
       {todo.description && (
@@ -238,10 +258,10 @@ export function TodoItem({
           </div>
         </div>
       )}
-      {todo.remark && (
+      {(todo.remark || todo.status === "pending") && (
         <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
           <p className="text-xs font-semibold text-blue-400 uppercase tracking-wider mb-1">Remark</p>
-          <p className="text-slate-200 text-sm whitespace-pre-wrap break-words">{todo.remark}</p>
+          <p className="text-slate-200 text-sm whitespace-pre-wrap break-words">{todo.remark || "No remark available"}</p>
         </div>
       )}
 

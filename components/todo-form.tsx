@@ -21,7 +21,7 @@ interface Todo {
   title: string
   description: string | null
   remark?: string | null
-  status: "pending" | "in-progress" | "complete"
+  status: "pending" | "in-process" | "complete"
   is_favorite: boolean
 }
 
@@ -41,7 +41,7 @@ export function TodoForm({
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [remark, setRemark] = useState("")
-  const [status, setStatus] = useState<"pending" | "in-progress" | "complete">("pending")
+  const [status, setStatus] = useState<"pending" | "in-process" | "complete">("pending")
   const [isFavorite, setIsFavorite] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -67,18 +67,20 @@ export function TodoForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    // Remark is required when status is "in-progress" or "complete"
-    if ((status === "in-progress" || status === "complete") && !remark.trim()) {
-      alert(`Remark is required when a Todo is ${status === "in-progress" ? "In Progress" : "Completed"}.`)
+    // Remark is required when status is "in-process" or "complete"
+    if ((status === "in-process" || status === "complete") && !remark.trim()) {
+      alert(`Remark is required when a Todo is ${status === "in-process" ? "In Process" : "Completed"}.`)
       return
     }
 
     setIsLoading(true)
 
     try {
+      console.log("Saving todo with data:", { title, description, remark, status, isFavorite, todoId: todo?.id })
+      
       if (todo?.id) {
         // Update existing todo
-        const { error } = await supabase
+        const { data: updateData, error } = await supabase
           .from("todos")
           .update({
             title,
@@ -89,6 +91,15 @@ export function TodoForm({
             updated_at: new Date().toISOString(),
           })
           .eq("id", todo.id)
+          .select()
+
+        if (error) {
+          console.error("Supabase update error:", error)
+          alert("Error updating todo: " + error.message)
+          throw error
+        }
+
+        console.log("Update success:", updateData)
 
         if (!error) {
           if (todo.title !== title) {
@@ -173,36 +184,41 @@ export function TodoForm({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
-                <Select value={status} onValueChange={(value: "pending" | "in-progress" | "complete") => setStatus(value)}>
-                  <SelectTrigger className="bg-slate-900/50 border-slate-700 text-white">
+                <Select value={status} onValueChange={(value: "pending" | "in-process" | "complete") => setStatus(value)}>
+                  <SelectTrigger className="bg-slate-950/20 border-slate-700 text-white hover:cursor-pointer">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-800 border-slate-700 text-white">
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="in-progress">In Progress</SelectItem>
-                    <SelectItem value="complete">Complete</SelectItem>
+                  <SelectContent className="bg-slate-950/40 border-cyan-500 backdrop-blur-sm">
+                    <SelectItem value="pending" className="text-white hover:cursor-pointer">Pending</SelectItem>
+                    <SelectItem value="in-process" className="text-blue-500 hover:cursor-pointer">In Progress</SelectItem>
+                    <SelectItem value="complete" className="text-green-500 hover:cursor-pointer">Complete</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               
-              {(status === "in-progress" || status === "complete") && (
-                <div className="space-y-2">
-                  <Label htmlFor="remark" className="text-orange-400">
-                    Remark <span className="text-red-500 font-bold">*</span>
-                  </Label>
-                  <Input
-                    id="remark"
-                    value={remark}
-                    onChange={(e) => setRemark(e.target.value)}
-                    placeholder={`Enter ${status === "in-progress" ? "progress" : "completion"} remark (Required)`}
-                    autoComplete="off"
-                    className={cn(
-                      "bg-slate-900/50 border-slate-700 text-white",
-                      !remark.trim() && "border-red-500/50 focus:border-red-500"
-                    )}
-                  />
-                </div>
-              )}
+              <div className="space-y-2">
+                <Label htmlFor="remark" className={cn(
+                  "text-slate-300",
+                  (status === "in-process" || status === "complete") && "text-orange-400"
+                )}>
+                  Remark {(status === "in-process" || status === "complete") && <span className="text-red-500 font-bold">*</span>}
+                </Label>
+                <Input
+                  id="remark"
+                  value={remark}
+                  onChange={(e) => setRemark(e.target.value)}
+                  placeholder={
+                    status === "pending" 
+                      ? "Enter remark (Optional)" 
+                      : `Enter ${status === "in-process" ? "progress" : "completion"} remark (Required)`
+                  }
+                  autoComplete="off"
+                  className={cn(
+                    "bg-slate-900/50 border-slate-700 text-white",
+                    (status === "in-process" || status === "complete") && !remark.trim() && "border-red-500/50 focus:border-red-500"
+                  )}
+                />
+              </div>
 
               <div className="flex items-center space-x-2">
                 <Checkbox

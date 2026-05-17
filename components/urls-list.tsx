@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Star, Trash2, Edit, Copy, Check, Eye, EyeOff, Share2, History, Users } from "lucide-react"
+import { Star, Trash2, Edit, Copy, Check, Eye, EyeOff, Share2, History, Users, User } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
@@ -10,6 +10,8 @@ import { copyToClipboard } from "@/lib/utils"
 import { ShareModal } from "./share-modal"
 import { HistoryModal } from "./history-modal"
 import { getBatchSharedWith } from "@/lib/sharing-actions"
+
+import { format } from "date-fns"
 
 interface Url {
   id: string
@@ -20,6 +22,7 @@ interface Url {
   is_favorite: boolean
   user_id: string
   shared_permission?: "view" | "edit"
+  received_at?: string
 }
 
 export function UrlsList({
@@ -28,6 +31,8 @@ export function UrlsList({
   onUpdate,
   currentUserId,
   sharesInfo: externalSharesInfo,
+  onToggleFavorite,
+  onDelete,
 }: {
   urls: Url[]
   onEdit: (url: Url) => void
@@ -185,75 +190,92 @@ export function UrlsList({
                     )}
                   </CardTitle>
                   {isOwner && shares.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {shares.map((share: any) => (
-                        <div key={share.id} className="text-[10px] text-slate-400 flex items-center gap-1 bg-white/5 px-1.5 py-0.5 rounded border border-white/5">
-                          <Users className="h-2 w-2" />
-                          {share.profiles?.username || share.profiles?.email}
-                          <span className="text-slate-600">({share.permission})</span>
-                        </div>
-                      ))}
+                    <div className="mt-3 flex items-center gap-2">
+                      <span className="text-[10px] font-semibold text-indigo-400 uppercase tracking-wider">Shared with:</span>
+                      <div className="flex -space-x-2 overflow-hidden">
+                        {shares.slice(0, 3).map((share: any) => (
+                          <div 
+                            key={share.id} 
+                            className="inline-block h-6 w-6 rounded-full ring-2 ring-slate-900 bg-slate-800 flex items-center justify-center border border-slate-700"
+                            title={`${share.profiles?.username || share.profiles?.email} (${share.permission})`}
+                          >
+                            <User className="h-3 w-3 text-slate-400" />
+                          </div>
+                        ))}
+                        {shares.length > 3 && (
+                          <div className="flex items-center justify-center h-6 w-6 rounded-full ring-2 ring-slate-900 bg-slate-800 border border-slate-700 text-[10px] text-slate-400">
+                            +{shares.length - 3}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => handleToggleFavorite(url.id, url.is_favorite)}
-                    className="btn-custom btn-custom-amber h-9 w-9 px-0 rounded-lg"
-                  >
-                    <Star className={url.is_favorite ? "fill-white text-white h-4 w-4" : "h-4 w-4 text-white"} />
-                  </Button>
-
-                  {isOwner && (
+                <div className="flex flex-col items-end gap-2 shrink-0">
+                  {url.received_at && (
+                    <span className="text-[10px] text-indigo-400 font-medium bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
+                      Received on: {format(new Date(url.received_at), "MMM d, yyyy h:mm a")}
+                    </span>
+                  )}
+                  <div className="flex items-center gap-2">
                     <Button
                       size="icon"
                       variant="ghost"
-                      onClick={() => handleShareClick(url)}
+                      onClick={() => handleToggleFavorite(url.id, url.is_favorite)}
+                      className="btn-custom btn-custom-amber h-9 w-9 px-0 rounded-lg"
+                    >
+                      <Star className={url.is_favorite ? "fill-white text-white h-4 w-4" : "h-4 w-4 text-white"} />
+                    </Button>
+
+                    {isOwner && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => handleShareClick(url)}
+                        className="btn-custom btn-custom-cyan h-9 w-9 px-0 rounded-lg"
+                      >
+                        <Share2 className="h-4 w-4 text-white" />
+                      </Button>
+                    )}
+
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => handleHistoryClick(url)}
                       className="btn-custom btn-custom-cyan h-9 w-9 px-0 rounded-lg"
                     >
-                      <Share2 className="h-4 w-4 text-white" />
+                      <History className="h-4 w-4 text-white" />
                     </Button>
-                  )}
 
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => handleHistoryClick(url)}
-                    className="btn-custom btn-custom-cyan h-9 w-9 px-0 rounded-lg"
-                  >
-                    <History className="h-4 w-4 text-white" />
-                  </Button>
-
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => togglePasswordVisibility(url.id)}
-                    className="btn-custom btn-custom-purple h-9 w-9 px-0 rounded-lg"
-                  >
-                    {visiblePasswords.has(url.id) ? <EyeOff className="h-4 w-4 text-white" /> : <Eye className="h-4 w-4 text-white" />}
-                  </Button>
-
-                  {canEdit && (
                     <Button
                       size="icon"
                       variant="ghost"
-                      onClick={() => onEdit(url)}
+                      onClick={() => togglePasswordVisibility(url.id)}
                       className="btn-custom btn-custom-purple h-9 w-9 px-0 rounded-lg"
                     >
-                      <Edit className="h-4 w-4 text-white" />
+                      {visiblePasswords.has(url.id) ? <EyeOff className="h-4 w-4 text-white" /> : <Eye className="h-4 w-4 text-white" />}
                     </Button>
-                  )}
 
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => handleDelete(url.id, url.user_id)}
-                    className="btn-custom btn-custom-red h-9 w-9 px-0 rounded-lg"
-                  >
-                    <Trash2 className="h-4 w-4 text-white" />
-                  </Button>
+                    {canEdit && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => onEdit(url)}
+                        className="btn-custom btn-custom-purple h-9 w-9 px-0 rounded-lg"
+                      >
+                        <Edit className="h-4 w-4 text-white" />
+                      </Button>
+                    )}
+
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => handleDelete(url.id, url.user_id)}
+                      className="btn-custom btn-custom-red h-9 w-9 px-0 rounded-lg"
+                    >
+                      <Trash2 className="h-4 w-4 text-white" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardHeader>

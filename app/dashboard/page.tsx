@@ -11,11 +11,11 @@ export default async function DashboardPage() {
 
   // Fetching initial counts for all categories
   const [formulasRes, shortcutsRes, notesRes, urlsRes, todosRes, sharedRes] = await Promise.all([
-    supabase.from("formulas").select("*", { count: "exact", head: true }).eq("user_id", user.id),
-    supabase.from("shortcuts").select("*", { count: "exact", head: true }).eq("user_id", user.id),
-    supabase.from("notes").select("*", { count: "exact", head: true }).eq("user_id", user.id),
-    supabase.from("urls").select("*", { count: "exact", head: true }).eq("user_id", user.id),
-    supabase.from("todos").select("*", { count: "exact", head: true }).eq("user_id", user.id),
+    supabase.from("formulas").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("is_deleted", false),
+    supabase.from("shortcuts").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("is_deleted", false),
+    supabase.from("notes").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("is_deleted", false),
+    supabase.from("urls").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("is_deleted", false),
+    supabase.from("todos").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("is_deleted", false),
     supabase.from("shared_items").select("*", { count: "exact", head: true }).eq("shared_with_id", user.id),
   ])
 

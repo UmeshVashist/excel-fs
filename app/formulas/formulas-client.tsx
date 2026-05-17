@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -30,14 +30,14 @@ export function FormulasClient({
   user: any
 }) {
   const [formulas, setFormulas] = useState<Formula[]>(initialFormulas)
-  const [filteredFormulas, setFilteredFormulas] = useState<Formula[]>(initialFormulas)
   const [searchQuery, setSearchQuery] = useState("")
-  const [filter, setFilter] = useState("all")
+  const [favoriteFilter, setFavoriteFilter] = useState("all")
+  const [sharedFilter, setSharedFilter] = useState("all")
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingFormula, setEditingFormula] = useState<Formula | null>(null)
   const [sharesInfo, setSharesInfo] = useState<Record<string, any[]>>({})
 
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   // Sync state with props when server data refreshes
   useEffect(() => {
@@ -63,7 +63,7 @@ export function FormulasClient({
 
   const loadFormulas = async () => {
     try {
-      // Fetch formulas where I am owner OR shared with me
+      // Fetch only owned formulas
       const { data: ownedData } = await supabase
         .from("formulas")
         .select("*")
@@ -71,34 +71,7 @@ export function FormulasClient({
         .eq("is_deleted", false)
         .order("created_at", { ascending: false })
 
-      const { data: sharedItems, error: sharedError } = await supabase
-        .from("shared_items")
-        .select("resource_id, permission")
-        .eq("shared_with_id", userId)
-        .eq("resource_type", "formulas")
-
-      if (sharedError && sharedError.code !== "PGRST205") throw sharedError
-
-      let allFormulas = ownedData || []
-
-      if (sharedItems && sharedItems.length > 0) {
-        const sharedIds = sharedItems.map(s => s.resource_id)
-        const { data: sharedData } = await supabase
-          .from("formulas")
-          .select("*")
-          .in("id", sharedIds)
-          .eq("is_deleted", false)
-        
-        if (sharedData) {
-          const sharedWithPermissions = sharedData.map(f => ({
-            ...f,
-            shared_permission: sharedItems.find(s => s.resource_id === f.id)?.permission
-          }))
-          allFormulas = [...allFormulas, ...sharedWithPermissions]
-        }
-      }
-
-      setFormulas(allFormulas)
+      setFormulas(ownedData || [])
     } catch (error: any) {
       if (error.code !== "PGRST205") {
         console.error("Error loading formulas:", error)
@@ -106,25 +79,35 @@ export function FormulasClient({
     }
   }
 
-  useEffect(() => {
-    let result = formulas
+  const filteredFormulas = useMemo(() => {
+    let result = formulas.filter(f => f.user_id === userId) // Only self-created items
 
     // Apply search filter
     if (searchQuery) {
-      result = result.filter((f) => f.title.toLowerCase().includes(searchQuery.toLowerCase()))
+      result = result.filter((f) => 
+        f.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        f.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
     }
 
     // Apply favorite filter
-    if (filter === "favorites") {
+    if (favoriteFilter === "favorites") {
       result = result.filter((f) => f.is_favorite)
-    } else if (filter === "unfavorites") {
+    } else if (favoriteFilter === "unfavorites") {
       result = result.filter((f) => !f.is_favorite)
-    } else if (filter === "shared") {
-      result = result.filter((f) => sharesInfo[f.id] && sharesInfo[f.id].length > 0)
     }
 
-    setFilteredFormulas(result)
-  }, [searchQuery, filter, formulas, sharesInfo])
+    // Apply shared filter
+    if (sharedFilter === "shared") {
+      // Show ONLY items I've shared with others
+      result = result.filter((f) => sharesInfo[f.id] && sharesInfo[f.id].length > 0)
+    } else if (sharedFilter === "unshare") {
+      // Show only items I own AND haven't shared with anyone
+      result = result.filter((f) => !sharesInfo[f.id] || sharesInfo[f.id].length === 0)
+    }
+
+    return result
+  }, [searchQuery, favoriteFilter, sharedFilter, formulas, sharesInfo, userId])
 
   const handleAdd = () => {
     setEditingFormula(null)
@@ -142,8 +125,44 @@ export function FormulasClient({
     loadFormulas()
   }
 
-  const handleUpdate = () => {
-    loadFormulas()
+  const handleToggleFavorite = async (id: string, currentFavorite: boolean) => {
+    const { error } = await supabase.from("formulas").update({ is_favorite: !currentFavorite }).eq("id", id)
+    if (!error) {
+      loadFormulas()
+    }
+  }
+
+  const handleDelete = async (id: string, ownerId: string) => {
+    const isOwner = ownerId === userId
+
+    if (isOwner) {
+      if (confirm("Are you sure you want to move this formula to Recycle Bin?")) {
+        const { error } = await supabase
+          .from("formulas")
+          .update({ 
+            is_deleted: true, 
+            deleted_at: new Date().toISOString() 
+          })
+          .eq("id", id)
+        
+        if (!error) {
+          loadFormulas()
+        }
+      }
+    } else {
+      if (confirm("This item was shared with you. Are you sure you want to remove it from your list?")) {
+        const { error } = await supabase
+          .from("shared_items")
+          .delete()
+          .eq("resource_id", id)
+          .eq("shared_with_id", userId)
+          .eq("resource_type", "formulas")
+        
+        if (!error) {
+          loadFormulas()
+        }
+      }
+    }
   }
 
   return (
@@ -181,28 +200,50 @@ export function FormulasClient({
             </button>
           )}
         </div>
-        <Select value={filter} onValueChange={setFilter}>
-          <SelectTrigger className="w-full sm:w-[180px] bg-slate-900/50 border-slate-700 text-white">
+        <Select value={favoriteFilter} onValueChange={setFavoriteFilter}>
+          <SelectTrigger className="w-full sm:w-[150px] bg-slate-950/20 text-white hover:cursor-pointer">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="bg-slate-800 border-slate-700">
-            <SelectItem value="all" className="text-white">
-              All Formulas
+          <SelectContent className="bg-slate-950/40 border-cyan-500 backdrop-blur-sm">
+            <SelectItem value="all" className="text-white hover:text-white cursor-pointer transition-colors">
+              All
             </SelectItem>
-            <SelectItem value="favorites" className="text-white">
+            <SelectItem value="favorites" className="text-orange-500 hover:text-white cursor-pointer transition-colors">
               Favorites
             </SelectItem>
-            <SelectItem value="unfavorites" className="text-white">
+            <SelectItem value="unfavorites" className="text-green-500 hover:text-white cursor-pointer transition-colors">
               Unfavorites
             </SelectItem>
-            <SelectItem value="shared" className="text-white">
+          </SelectContent>
+        </Select>
+
+        <Select value={sharedFilter} onValueChange={setSharedFilter}>
+          <SelectTrigger className="w-full sm:w-[150px] bg-slate-950/20 text-white hover:cursor-pointer">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="bg-slate-950/40 border-cyan-500 backdrop-blur-sm">
+            <SelectItem value="all" className="text-white hover:text-white cursor-pointer transition-colors">
+              All Items
+            </SelectItem>
+            <SelectItem value="shared" className="text-indigo-500 hover:text-white cursor-pointer transition-colors">
               Shared
+            </SelectItem>
+            <SelectItem value="unshare" className="text-red-500 hover:text-white cursor-pointer transition-colors">
+              Unshare
             </SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      <FormulaList formulas={filteredFormulas} onEdit={handleEdit} onUpdate={handleUpdate} currentUserId={userId} sharesInfo={sharesInfo} />
+      <FormulaList 
+        formulas={filteredFormulas} 
+        onEdit={handleEdit} 
+        onUpdate={loadFormulas} 
+        currentUserId={userId} 
+        sharesInfo={sharesInfo}
+        onToggleFavorite={handleToggleFavorite}
+        onDelete={handleDelete}
+      />
 
       <FormulaForm open={isFormOpen} onOpenChange={handleFormClose} formula={editingFormula} userId={userId} />
     </div>

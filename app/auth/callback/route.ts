@@ -61,19 +61,14 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/auth/login", request.url))
   }
 
-  // Check if the user was just created (within the last 2 minutes)
-  const isNewUser = (new Date().getTime() - new Date(user.created_at).getTime()) < 120000
+  // Check if the user was just created (within the last 10 minutes)
+  const isNewUser = (new Date().getTime() - new Date(user.created_at).getTime()) < 600000
 
-  // If this is a login flow (not signup), and user is new, reject it
+  // If this is a login flow (not signup), and user is new, we now allow it 
+  // but redirect to the setup page. This provides a better UX than blocking.
   if (flow !== "signup" && isNewUser) {
-    console.warn("New user tried to login instead of sign up:", user.id)
-    await supabase.auth.signOut()
-    return NextResponse.redirect(
-      new URL(
-        `/auth/login?error=${encodeURIComponent("Account not found. Please use the Sign Up page to create an account first.")}`,
-        request.url
-      )
-    )
+    console.log("New user logged in via OAuth, redirecting to setup:", user.id)
+    // We'll proceed to profile checks below to ensure everything is set up
   }
 
   // Get user's profile with retry logic (triggers can be slow)
@@ -90,18 +85,29 @@ export async function GET(request: Request) {
 
     if (data) {
       profile = data
+      console.log("Profile found for user:", user.id)
       break
     }
 
-    console.log(`Profile fetch attempt ${retryCount + 1} failed, retrying...`)
+    if (profileError) {
+      console.error(`Profile fetch attempt ${retryCount + 1} error:`, profileError)
+      // If the error is about missing columns, we should log that specifically
+      if (profileError.code === "PGRST204" || profileError.message?.includes("column")) {
+        console.error("DATABASE SCHEMA ERROR: Missing columns in public.profiles table. Please run the migration script 005_add_oauth_tracking.sql")
+      }
+    } else {
+      console.log(`Profile fetch attempt ${retryCount + 1} returned no data, retrying...`)
+    }
+    
     await new Promise(resolve => setTimeout(resolve, 1000)) // Wait 1s
     retryCount++
   }
 
   if (!profile) {
     console.error("Profile not found for user after retries:", user.id)
-    // If it's a signup flow, we can try to manually create a basic profile if trigger failed
-    if (flow === "signup") {
+    // If it's a signup flow OR a new user logging in, we can try to manually create a basic profile if trigger failed
+    if (flow === "signup" || isNewUser) {
+      console.log("Attempting manual profile creation for user:", user.id)
       try {
         const serviceClient = createServiceRoleClient()
         const { data: newProfile, error: createError } = await serviceClient
@@ -118,30 +124,36 @@ export async function GET(request: Request) {
         
         if (createError) {
           console.error("Failed to manually create profile:", createError)
+          
           // Even if insert fails, check if profile was created by trigger in the meantime
+          // This handles race conditions where the trigger finally succeeds
           const { data: existingProfile } = await supabase
             .from("profiles")
-            .select("oauth_provider, password_set")
+            .select("oauth_provider, password_set, email")
             .eq("id", user.id)
             .maybeSingle()
           
           if (existingProfile) {
+            console.log("Profile found on final check after manual creation failure")
             profile = existingProfile
           } else {
-            return NextResponse.redirect(new URL("/auth/sign-up?error=Failed to initialize profile", request.url))
+            console.error("Manual creation failed and profile still missing. Check database logs.")
+            return NextResponse.redirect(new URL(`/auth/sign-up?error=${encodeURIComponent("Failed to initialize your profile. Please try again.")}`, request.url))
           }
         } else {
+          console.log("Manually created profile successfully")
           profile = newProfile
         }
       } catch (e) {
         console.error("Exception during manual profile creation:", e)
-        return NextResponse.redirect(new URL("/auth/sign-up?error=Profile initialization error", request.url))
+        return NextResponse.redirect(new URL(`/auth/sign-up?error=${encodeURIComponent("Profile initialization error. Please contact support.")}`, request.url))
       }
     } else {
+      console.warn("User profile not found for existing user login:", user.id)
       await supabase.auth.signOut()
       return NextResponse.redirect(
         new URL(
-          `/auth/login?error=${encodeURIComponent("User not found. Please sign up first.")}`,
+          `/auth/login?error=${encodeURIComponent("User account not found in database. Please sign up first.")}`,
           request.url
         )
       )
@@ -190,5 +202,8 @@ export async function GET(request: Request) {
   }
 
   // All checks passed - redirect to dashboard
+  if (isNewUser || !profile.password_set) {
+    return NextResponse.redirect(new URL("/dashboard?new_user=true", request.url))
+  }
   return NextResponse.redirect(new URL("/dashboard", request.url))
 }

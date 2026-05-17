@@ -5,8 +5,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, X, Loader2, User, Check, History } from "lucide-react"
-import { searchUsers, shareItem, getSharedWith } from "@/lib/sharing-actions"
+import { Search, X, Loader2, User, Check, History, Trash2, Edit2 } from "lucide-react"
+import { searchUsers, shareItem, getSharedWith, removeShare, updateSharePermission } from "@/lib/sharing-actions"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 
@@ -47,10 +47,13 @@ export function ShareModal({
   const [isSharing, setIsSharing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sharedUsers, setSharedUsers] = useState<any[]>([])
+  const [searchQuery, setSearchQuery] = useState("")
 
   useEffect(() => {
     if (open) {
       loadSharedUsers()
+      setQuery("")
+      setSearchQuery("")
     }
   }, [open, resourceId, resourceType])
 
@@ -58,6 +61,34 @@ export function ShareModal({
     const users = await getSharedWith(resourceId, resourceType)
     setSharedUsers(users)
   }
+
+  const handleRemoveShare = async (shareId: string) => {
+    if (confirm("Are you sure you want to remove this user's access?")) {
+      const res = await removeShare(shareId)
+      if (res.success) {
+        loadSharedUsers()
+      } else {
+        alert(res.error || "Failed to remove access")
+      }
+    }
+  }
+
+  const handleUpdatePermission = async (shareId: string, newPermission: "view" | "edit") => {
+    const res = await updateSharePermission(shareId, newPermission)
+    if (res.success) {
+      loadSharedUsers()
+    } else {
+      alert(res.error || "Failed to update permission")
+    }
+  }
+
+  const filteredSharedUsers = sharedUsers.filter(share => {
+    if (!searchQuery) return true
+    const name = share.profiles?.username?.toLowerCase() || ""
+    const email = share.profiles?.email?.toLowerCase() || ""
+    const q = searchQuery.toLowerCase()
+    return name.includes(q) || email.includes(q)
+  })
 
   useEffect(() => {
     if (query.length < 2) {
@@ -148,14 +179,14 @@ export function ShareModal({
             )}
 
             {results.length > 0 && (
-              <div className="bg-slate-800 border border-slate-700 rounded-lg overflow-hidden mt-1 shadow-xl">
+              <div className="bg-slate-800 border border-slate-700 rounded-lg mt-1 shadow-xl max-h-48 overflow-y-auto custom-scrollbar">
                 {results.map(user => {
                   const isEmailSearch = query.includes("@")
                   return (
                     <button
                       key={user.id}
                       onClick={() => handleToggleUser(user)}
-                      className="w-full flex flex-col items-start px-4 py-2 hover:bg-slate-700 text-left transition-colors border-b border-slate-700 last:border-0"
+                      className="w-full flex flex-col items-start px-4 py-2 hover:bg-slate-700 text-left transition-colors border-b border-slate-700 last:border-0 cursor-pointer"
                     >
                       <span className="text-white font-medium">
                         {isEmailSearch ? (user.username || "No username") : user.email}
@@ -205,28 +236,65 @@ export function ShareModal({
 
           {sharedUsers.length > 0 && (
             <div className="pt-4 border-t border-slate-800">
-              <h4 className="text-white text-sm font-semibold mb-3">Already shared with</h4>
-              <div className="space-y-3 max-h-[200px] overflow-y-auto pr-2">
-                {sharedUsers.map((share: any) => (
-                  <div key={share.id} className="flex items-center justify-between group">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700">
-                        <User className="h-4 w-4 text-slate-400" />
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-white text-sm font-semibold">Already shared with</h4>
+                <div className="relative w-1/2">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-500" />
+                  <Input
+                    placeholder="Search shared..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-7 h-7 text-[10px] bg-slate-950/50 border-slate-700 text-white"
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-3 max-h-[160px] overflow-y-auto pr-2 custom-scrollbar">
+                {filteredSharedUsers.length > 0 ? (
+                  filteredSharedUsers.map((share: any) => (
+                    <div key={share.id} className="flex items-center justify-between group">
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700 shrink-0">
+                          <User className="h-4 w-4 text-slate-400" />
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-white text-sm font-medium truncate">
+                            {share.profiles?.username || share.profiles?.email || "Unknown"}
+                          </span>
+                          <span className="text-slate-500 text-[10px] truncate">
+                            {share.profiles?.email && share.profiles?.email !== share.profiles?.username ? `${share.profiles.email} • ` : ""}
+                            {format(new Date(share.created_at), "MMM d, HH:mm")}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex flex-col">
-                        <span className="text-white text-sm font-medium">
-                          {share.profiles?.username || "Unknown"}
-                        </span>
-                        <span className="text-slate-500 text-xs">
-                          {share.profiles?.email} • {format(new Date(share.created_at), "MMM d, HH:mm")}
-                        </span>
+                      <div className="flex items-center gap-2">
+                        <Select
+                          value={share.permission}
+                          onValueChange={(v: "view" | "edit") => handleUpdatePermission(share.id, v)}
+                        >
+                          <SelectTrigger className="h-7 w-[85px] bg-slate-800 border-slate-700 text-[10px] text-slate-300 cursor-pointer">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-slate-800 border-slate-700">
+                            <SelectItem value="view" className="text-[10px] cursor-pointer">Viewer</SelectItem>
+                            <SelectItem value="edit" className="text-[10px] cursor-pointer">Editor</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <button
+                          onClick={() => handleRemoveShare(share.id)}
+                          className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-md transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+                          title="Remove access"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                     </div>
-                    <div className="text-xs text-slate-400 bg-slate-800 px-2 py-1 rounded-md border border-slate-700">
-                      {share.permission === "edit" ? "Editor" : "Viewer"}
-                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-4 text-slate-500 text-xs italic">
+                    No matching users found.
                   </div>
-                ))}
+                )}
               </div>
             </div>
           )}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -31,14 +31,14 @@ export function UrlsClient({
   user: any
 }) {
   const [urls, setUrls] = useState<Url[]>(initialUrls)
-  const [filteredUrls, setFilteredUrls] = useState<Url[]>(initialUrls)
   const [searchQuery, setSearchQuery] = useState("")
-  const [filter, setFilter] = useState("all")
+  const [favoriteFilter, setFavoriteFilter] = useState("all")
+  const [sharedFilter, setSharedFilter] = useState("all")
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingUrl, setEditingUrl] = useState<Url | null>(null)
   const [sharesInfo, setSharesInfo] = useState<Record<string, any[]>>({})
 
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
     loadUrls()
@@ -63,7 +63,7 @@ export function UrlsClient({
 
   const loadUrls = async () => {
     try {
-      // Fetch urls where I am owner OR shared with me
+      // Fetch only owned urls
       const { data: ownedData } = await supabase
         .from("urls")
         .select("*")
@@ -71,34 +71,7 @@ export function UrlsClient({
         .eq("is_deleted", false)
         .order("created_at", { ascending: false })
 
-      const { data: sharedItems, error: sharedError } = await supabase
-        .from("shared_items")
-        .select("resource_id, permission")
-        .eq("shared_with_id", userId)
-        .eq("resource_type", "urls")
-
-      if (sharedError && sharedError.code !== "PGRST205") throw sharedError
-
-      let allUrls = ownedData || []
-
-      if (sharedItems && sharedItems.length > 0) {
-        const sharedIds = sharedItems.map(s => s.resource_id)
-        const { data: sharedData } = await supabase
-          .from("urls")
-          .select("*")
-          .in("id", sharedIds)
-          .eq("is_deleted", false)
-        
-        if (sharedData) {
-          const sharedWithPermissions = sharedData.map(u => ({
-            ...u,
-            shared_permission: sharedItems.find(item => item.resource_id === u.id)?.permission
-          }))
-          allUrls = [...allUrls, ...sharedWithPermissions]
-        }
-      }
-
-      setUrls(allUrls.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()))
+      setUrls(ownedData || [])
     } catch (error: any) {
       if (error.code !== "PGRST205") {
         console.error("Error loading urls:", error)
@@ -106,25 +79,31 @@ export function UrlsClient({
     }
   }
 
-  useEffect(() => {
-    let result = urls
+  const filteredUrls = useMemo(() => {
+    let result = urls.filter(u => u.user_id === userId)
 
-    // Apply search filter
     if (searchQuery) {
-      result = result.filter((u) => u.title.toLowerCase().includes(searchQuery.toLowerCase()))
+      result = result.filter((u) =>
+        u.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        u.url.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (u as any).description?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
     }
 
-    // Apply favorite filter
-    if (filter === "favorites") {
+    if (favoriteFilter === "favorites") {
       result = result.filter((u) => u.is_favorite)
-    } else if (filter === "unfavorites") {
+    } else if (favoriteFilter === "unfavorites") {
       result = result.filter((u) => !u.is_favorite)
-    } else if (filter === "shared") {
-      result = result.filter((u) => sharesInfo[u.id] && sharesInfo[u.id].length > 0)
     }
 
-    setFilteredUrls(result)
-  }, [searchQuery, filter, urls, sharesInfo])
+    if (sharedFilter === "shared") {
+      result = result.filter((u) => sharesInfo[u.id] && sharesInfo[u.id].length > 0)
+    } else if (sharedFilter === "unshare") {
+      result = result.filter((u) => !sharesInfo[u.id] || sharesInfo[u.id].length === 0)
+    }
+
+    return result
+  }, [urls, searchQuery, favoriteFilter, sharedFilter, sharesInfo, userId])
 
   const handleAdd = () => {
     setEditingUrl(null)
@@ -217,22 +196,35 @@ export function UrlsClient({
             </button>
           )}
         </div>
-        <Select value={filter} onValueChange={setFilter}>
-          <SelectTrigger className="w-full sm:w-[180px] bg-slate-900/50 border-slate-700 text-white">
+        <Select value={sharedFilter} onValueChange={setSharedFilter}>
+          <SelectTrigger className="w-full sm:w-[150px] bg-slate-950/20 text-white hover:cursor-pointer">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="bg-slate-800 border-slate-700">
-            <SelectItem value="all" className="text-white">
-              All URLs
+          <SelectContent className="bg-slate-950/40 border-cyan-500 backdrop-blur-sm">
+            <SelectItem value="all" className="text-white hover:text-white cursor-pointer transition-colors">
+              All Items
             </SelectItem>
-            <SelectItem value="favorites" className="text-white">
+            <SelectItem value="shared" className="text-indigo-500 hover:text-white cursor-pointer transition-colors">
+              Shared
+            </SelectItem>
+            <SelectItem value="unshare" className="text-red-500 hover:text-white cursor-pointer transition-colors">
+              Unshare
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={favoriteFilter} onValueChange={setFavoriteFilter}>
+          <SelectTrigger className="w-full sm:w-[150px] bg-slate-950/20 text-white hover:cursor-pointer">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="bg-slate-950/40 border-cyan-500 backdrop-blur-sm">
+            <SelectItem value="all" className="text-white hover:text-white cursor-pointer transition-colors">
+              All
+            </SelectItem>
+            <SelectItem value="favorites" className="text-orange-500 hover:text-white cursor-pointer transition-colors">
               Favorites
             </SelectItem>
-            <SelectItem value="unfavorites" className="text-white">
+            <SelectItem value="unfavorites" className="text-green-500 hover:text-white cursor-pointer transition-colors">
               Unfavorites
-            </SelectItem>
-            <SelectItem value="shared" className="text-white">
-              Shared
             </SelectItem>
           </SelectContent>
         </Select>

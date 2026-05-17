@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -29,14 +29,14 @@ export function NotesClient({
   user: any
 }) {
   const [notes, setNotes] = useState<Note[]>(initialNotes)
-  const [filteredNotes, setFilteredNotes] = useState<Note[]>(initialNotes)
   const [searchQuery, setSearchQuery] = useState("")
-  const [filter, setFilter] = useState("all")
+  const [favoriteFilter, setFavoriteFilter] = useState("all")
+  const [sharedFilter, setSharedFilter] = useState("all")
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingNote, setEditingNote] = useState<Note | null>(null)
   const [sharesInfo, setSharesInfo] = useState<Record<string, any[]>>({})
 
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   // Sync state with props when server data refreshes
   useEffect(() => {
@@ -62,7 +62,7 @@ export function NotesClient({
 
   const loadNotes = async () => {
     try {
-      // Fetch notes where I am owner OR shared with me
+      // Fetch only owned notes
       const { data: ownedData } = await supabase
         .from("notes")
         .select("*")
@@ -70,60 +70,36 @@ export function NotesClient({
         .eq("is_deleted", false)
         .order("created_at", { ascending: false })
 
-      const { data: sharedItems, error: sharedError } = await supabase
-        .from("shared_items")
-        .select("resource_id, permission")
-        .eq("shared_with_id", userId)
-        .eq("resource_type", "notes")
-
-      if (sharedError && sharedError.code !== "PGRST205") throw sharedError
-
-      let allNotes = ownedData || []
-
-      if (sharedItems && sharedItems.length > 0) {
-        const sharedIds = sharedItems.map(s => s.resource_id)
-        const { data: sharedData } = await supabase
-          .from("notes")
-          .select("*")
-          .in("id", sharedIds)
-          .eq("is_deleted", false)
-        
-        if (sharedData) {
-          const sharedWithPermissions = sharedData.map(n => ({
-            ...n,
-            shared_permission: sharedItems.find(item => item.resource_id === n.id)?.permission
-          }))
-          allNotes = [...allNotes, ...sharedWithPermissions]
-        }
-      }
-
-      setNotes(allNotes.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()))
-    } catch (error: any) {
-      if (error.code !== "PGRST205") {
-        console.error("Error loading notes:", error)
-      }
+      setNotes(ownedData || [])
+    } catch (error) {
+      console.error("Error loading notes:", error)
     }
   }
 
-  useEffect(() => {
-    let result = notes
+  const filteredNotes = useMemo(() => {
+    let result = notes.filter(n => n.user_id === userId)
 
-    // Apply search filter
     if (searchQuery) {
-      result = result.filter((n) => n.title.toLowerCase().includes(searchQuery.toLowerCase()))
+      result = result.filter((n) =>
+        n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        n.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
     }
 
-    // Apply favorite filter
-    if (filter === "favorites") {
+    if (favoriteFilter === "favorites") {
       result = result.filter((n) => n.is_favorite)
-    } else if (filter === "unfavorites") {
+    } else if (favoriteFilter === "unfavorites") {
       result = result.filter((n) => !n.is_favorite)
-    } else if (filter === "shared") {
-      result = result.filter((n) => sharesInfo[n.id] && sharesInfo[n.id].length > 0)
     }
 
-    setFilteredNotes(result)
-  }, [searchQuery, filter, notes, sharesInfo])
+    if (sharedFilter === "shared") {
+      result = result.filter((n) => sharesInfo[n.id] && sharesInfo[n.id].length > 0)
+    } else if (sharedFilter === "unshare") {
+      result = result.filter((n) => !sharesInfo[n.id] || sharesInfo[n.id].length === 0)
+    }
+
+    return result
+  }, [notes, searchQuery, favoriteFilter, sharedFilter, sharesInfo, userId])
 
   const handleAdd = () => {
     setEditingNote(null)
@@ -141,8 +117,44 @@ export function NotesClient({
     loadNotes()
   }
 
-  const handleUpdate = () => {
-    loadNotes()
+  const handleToggleFavorite = async (id: string, currentFavorite: boolean) => {
+    const { error } = await supabase.from("notes").update({ is_favorite: !currentFavorite }).eq("id", id)
+    if (!error) {
+      loadNotes()
+    }
+  }
+
+  const handleDelete = async (id: string, ownerId: string) => {
+    const isOwner = ownerId === userId
+
+    if (isOwner) {
+      if (confirm("Are you sure you want to move this note to Recycle Bin?")) {
+        const { error } = await supabase
+          .from("notes")
+          .update({ 
+            is_deleted: true, 
+            deleted_at: new Date().toISOString() 
+          })
+          .eq("id", id)
+        
+        if (!error) {
+          loadNotes()
+        }
+      }
+    } else {
+      if (confirm("This item was shared with you. Are you sure you want to remove it from your list?")) {
+        const { error } = await supabase
+          .from("shared_items")
+          .delete()
+          .eq("resource_id", id)
+          .eq("shared_with_id", userId)
+          .eq("resource_type", "notes")
+        
+        if (!error) {
+          loadNotes()
+        }
+      }
+    }
   }
 
   return (
@@ -180,28 +192,49 @@ export function NotesClient({
             </button>
           )}
         </div>
-        <Select value={filter} onValueChange={setFilter}>
-          <SelectTrigger className="w-full sm:w-[180px] bg-slate-900/50 border-slate-700 text-white">
+        <Select value={sharedFilter} onValueChange={setSharedFilter}>
+          <SelectTrigger className="w-full sm:w-[150px] bg-slate-950/20 text-white hover:cursor-pointer">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="bg-slate-800 border-slate-700">
-            <SelectItem value="all" className="text-white">
-              All Notes
+          <SelectContent className="bg-slate-950/40 border-cyan-500 backdrop-blur-sm">
+            <SelectItem value="all" className="text-white hover:text-white cursor-pointer transition-colors">
+              All Items
             </SelectItem>
-            <SelectItem value="favorites" className="text-white">
+            <SelectItem value="shared" className="text-indigo-500 hover:text-white cursor-pointer transition-colors">
+              Shared
+            </SelectItem>
+            <SelectItem value="unshare" className="text-red-500 hover:text-white cursor-pointer transition-colors">
+              Unshare
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={favoriteFilter} onValueChange={setFavoriteFilter}>
+          <SelectTrigger className="w-full sm:w-[150px] bg-slate-950/20 text-white hover:cursor-pointer">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="bg-slate-950/40 border-cyan-500 backdrop-blur-sm">
+            <SelectItem value="all" className="text-white hover:text-white cursor-pointer transition-colors">
+              All
+            </SelectItem>
+            <SelectItem value="favorites" className="text-orange-500 hover:text-white cursor-pointer transition-colors">
               Favorites
             </SelectItem>
-            <SelectItem value="unfavorites" className="text-white">
+            <SelectItem value="unfavorites" className="text-green-500 hover:text-white cursor-pointer transition-colors">
               Unfavorites
-            </SelectItem>
-            <SelectItem value="shared" className="text-white">
-              Shared
             </SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      <NotesList notes={filteredNotes} onEdit={handleEdit} onUpdate={handleUpdate} currentUserId={userId} sharesInfo={sharesInfo} />
+      <NotesList 
+        notes={filteredNotes} 
+        onEdit={handleEdit} 
+        onUpdate={loadNotes} 
+        currentUserId={userId} 
+        sharesInfo={sharesInfo}
+        onToggleFavorite={handleToggleFavorite}
+        onDelete={handleDelete}
+      />
 
       <NoteForm open={isFormOpen} onOpenChange={handleFormClose} note={editingNote} userId={userId} />
     </div>

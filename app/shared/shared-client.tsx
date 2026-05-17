@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { GlassBackground } from "@/components/glass-background"
 import { Input } from "@/components/ui/input"
@@ -13,8 +13,13 @@ import { UrlsList } from "@/components/urls-list"
 import { TodoItem } from "@/components/todo-item"
 import { getBatchSharedWith } from "@/lib/sharing-actions"
 
+import { ShortcutForm } from "@/components/shortcut-form"
+import { NoteForm } from "@/components/note-form"
+import { UrlForm } from "@/components/url-form"
+import { TodoForm } from "@/components/todo-form"
+
 export default function SharedClient({ userId }: { userId: string }) {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const [searchQuery, setSearchQuery] = useState("")
   const [category, setCategory] = useState("all")
   const [favoriteFilter, setFavoriteFilter] = useState("all")
@@ -27,13 +32,15 @@ export default function SharedClient({ userId }: { userId: string }) {
     sharesInfo: {}
   })
   const [isLoading, setIsLoading] = useState(true)
+  const [isFormOpen, setIsFormOpen] = useState(false)
+  const [editingItem, setEditingItem] = useState<{ type: string; data: any } | null>(null)
 
   const loadSharedItems = useCallback(async () => {
     setIsLoading(true)
     try {
       const { data: sharedItems, error: sharedError } = await supabase
         .from("shared_items")
-        .select("resource_id, resource_type, permission")
+        .select("resource_id, resource_type, permission, created_at")
         .eq("shared_with_id", userId)
 
       if (sharedError) throw sharedError
@@ -55,7 +62,8 @@ export default function SharedClient({ userId }: { userId: string }) {
           
           return (data || []).map(item => ({
             ...item,
-            shared_permission: typeShares.find(s => s.resource_id === item.id)?.permission
+            shared_permission: typeShares.find(s => s.resource_id === item.id)?.permission,
+            received_at: typeShares.find(s => s.resource_id === item.id)?.created_at
           }))
         }
 
@@ -113,6 +121,38 @@ export default function SharedClient({ userId }: { userId: string }) {
     return result
   }
 
+  const handleToggleFavorite = async (id: string, currentFavorite: boolean, type: string) => {
+    const table = type === "urls" ? "urls" : type === "notes" ? "notes" : type === "shortcuts" ? "shortcuts" : "formulas"
+    const { error } = await supabase.from(table).update({ is_favorite: !currentFavorite }).eq("id", id)
+    if (!error) {
+      loadSharedItems()
+    }
+  }
+
+  const handleDelete = async (id: string, ownerId: string, type: string) => {
+    // In shared view, users can only remove shared items from their list
+    if (confirm("This item was shared with you. Are you sure you want to remove it from your list?")) {
+      const { error } = await supabase
+        .from("shared_items")
+        .delete()
+        .eq("resource_id", id)
+        .eq("shared_with_id", userId)
+        .eq("resource_type", type)
+      
+      if (!error) {
+        loadSharedItems()
+      }
+    }
+  }
+
+  const handleFormClose = (open: boolean) => {
+    setIsFormOpen(open)
+    if (!open) {
+      setEditingItem(null)
+      loadSharedItems()
+    }
+  }
+
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -145,27 +185,27 @@ export default function SharedClient({ userId }: { userId: string }) {
           </div>
           <div className="flex flex-col sm:flex-row gap-4">
             <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger className="w-full sm:w-[180px] bg-slate-900/50 border-slate-700 text-white cursor-pointer">
+              <SelectTrigger className="w-full sm:w-[180px] bg-slate-950/20 text-white hover:cursor-pointer">
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
-              <SelectContent className="bg-slate-800 border-slate-700">
-                <SelectItem value="all" className="cursor-pointer text-white">All Categories</SelectItem>
-                <SelectItem value="formulas" className="cursor-pointer text-white">Formulas</SelectItem>
-                <SelectItem value="shortcuts" className="cursor-pointer text-white">Shortcuts</SelectItem>
-                <SelectItem value="notes" className="cursor-pointer text-white">Notes</SelectItem>
-                <SelectItem value="urls" className="cursor-pointer text-white">URLs</SelectItem>
-                <SelectItem value="todos" className="cursor-pointer text-white">Todos</SelectItem>
+              <SelectContent className="bg-slate-950/40 border-cyan-500 backdrop-blur-sm">
+                <SelectItem value="all" className="cursor-pointer text-white hover:text-white transition-colors">All Categories</SelectItem>
+                <SelectItem value="formulas" className="cursor-pointer text-cyan-500 hover:text-white transition-colors">Formulas</SelectItem>
+                <SelectItem value="shortcuts" className="cursor-pointer text-orange-500 hover:text-white transition-colors">Shortcuts</SelectItem>
+                <SelectItem value="notes" className="cursor-pointer text-green-500 hover:text-white transition-colors">Notes</SelectItem>
+                <SelectItem value="urls" className="cursor-pointer text-orange-500 hover:text-white transition-colors">URLs</SelectItem>
+                <SelectItem value="todos" className="cursor-pointer text-cyan-500 hover:text-white transition-colors">Todos</SelectItem>
               </SelectContent>
             </Select>
 
             <Select value={favoriteFilter} onValueChange={setFavoriteFilter}>
-              <SelectTrigger className="w-full sm:w-[180px] bg-slate-900/50 border-slate-700 text-white cursor-pointer">
+              <SelectTrigger className="w-full sm:w-[180px] bg-slate-950/20 text-white hover:cursor-pointer">
                 <SelectValue placeholder="Filter by" />
               </SelectTrigger>
-              <SelectContent className="bg-slate-800 border-slate-700">
-                <SelectItem value="all" className="cursor-pointer text-white">All</SelectItem>
-                <SelectItem value="favorites" className="cursor-pointer text-white">Favorites</SelectItem>
-                <SelectItem value="unfavorites" className="cursor-pointer text-white">Unfavorites</SelectItem>
+              <SelectContent className="bg-slate-950/40 border-cyan-500 backdrop-blur-sm">
+                <SelectItem value="all" className="cursor-pointer text-white hover:text-white transition-colors">All</SelectItem>
+                <SelectItem value="favorites" className="cursor-pointer text-orange-500 hover:text-white transition-colors">Favorites</SelectItem>
+                <SelectItem value="unfavorites" className="cursor-pointer text-green-500 hover:text-white transition-colors">Unfavorites</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -182,10 +222,15 @@ export default function SharedClient({ userId }: { userId: string }) {
                 <h2 className="text-xl font-semibold text-white border-b border-white/5 pb-2">Formulas</h2>
                 <FormulaList 
                   formulas={filterItems(items.formulas)} 
-                  onEdit={() => {}} // Shared view doesn't support direct editing from here yet
+                  onEdit={(formula) => {
+                    setEditingItem({ type: "formula", data: formula })
+                    setIsFormOpen(true)
+                  }}
                   onUpdate={loadSharedItems}
                   currentUserId={userId}
                   sharesInfo={items.sharesInfo}
+                  onToggleFavorite={(id, fav) => handleToggleFavorite(id, fav, "formulas")}
+                  onDelete={(id, owner) => handleDelete(id, owner, "formulas")}
                 />
               </section>
             )}
@@ -195,10 +240,15 @@ export default function SharedClient({ userId }: { userId: string }) {
                 <h2 className="text-xl font-semibold text-white border-b border-white/5 pb-2">Shortcuts</h2>
                 <ShortcutList 
                   shortcuts={filterItems(items.shortcuts)} 
-                  onEdit={() => {}}
+                  onEdit={(shortcut) => {
+                    setEditingItem({ type: "shortcut", data: shortcut })
+                    setIsFormOpen(true)
+                  }}
                   onUpdate={loadSharedItems}
                   currentUserId={userId}
                   sharesInfo={items.sharesInfo}
+                  onToggleFavorite={(id, fav) => handleToggleFavorite(id, fav, "shortcuts")}
+                  onDelete={(id, owner) => handleDelete(id, owner, "shortcuts")}
                 />
               </section>
             )}
@@ -208,10 +258,15 @@ export default function SharedClient({ userId }: { userId: string }) {
                 <h2 className="text-xl font-semibold text-white border-b border-white/5 pb-2">Notes</h2>
                 <NotesList 
                   notes={filterItems(items.notes)} 
-                  onEdit={() => {}}
+                  onEdit={(note) => {
+                    setEditingItem({ type: "note", data: note })
+                    setIsFormOpen(true)
+                  }}
                   onUpdate={loadSharedItems}
                   currentUserId={userId}
                   sharesInfo={items.sharesInfo}
+                  onToggleFavorite={(id, fav) => handleToggleFavorite(id, fav, "notes")}
+                  onDelete={(id, owner) => handleDelete(id, owner, "notes")}
                 />
               </section>
             )}
@@ -221,10 +276,15 @@ export default function SharedClient({ userId }: { userId: string }) {
                 <h2 className="text-xl font-semibold text-white border-b border-white/5 pb-2">URLs</h2>
                 <UrlsList 
                   urls={filterItems(items.urls)} 
-                  onEdit={() => {}}
+                  onEdit={(url) => {
+                    setEditingItem({ type: "url", data: url })
+                    setIsFormOpen(true)
+                  }}
                   onUpdate={loadSharedItems}
                   currentUserId={userId}
                   sharesInfo={items.sharesInfo}
+                  onToggleFavorite={(id, fav) => handleToggleFavorite(id, fav, "urls")}
+                  onDelete={(id, owner) => handleDelete(id, owner, "urls")}
                 />
               </section>
             )}
@@ -237,7 +297,10 @@ export default function SharedClient({ userId }: { userId: string }) {
                     <TodoItem 
                       key={todo.id} 
                       todo={todo} 
-                      onEdit={() => {}}
+                      onEdit={(todo) => {
+                        setEditingItem({ type: "todo", data: todo })
+                        setIsFormOpen(true)
+                      }}
                       onUpdate={loadSharedItems}
                       currentUserId={userId}
                       initialShares={items.sharesInfo?.[todo.id] || []}
@@ -256,6 +319,51 @@ export default function SharedClient({ userId }: { userId: string }) {
             )}
           </div>
         )}
+
+      {editingItem && (
+        <>
+          {editingItem.type === "formula" && (
+            <FormulaForm
+              open={isFormOpen}
+              onOpenChange={handleFormClose}
+              formula={editingItem.data}
+              userId={userId}
+            />
+          )}
+          {editingItem.type === "shortcut" && (
+            <ShortcutForm
+              open={isFormOpen}
+              onOpenChange={handleFormClose}
+              shortcut={editingItem.data}
+              userId={userId}
+            />
+          )}
+          {editingItem.type === "note" && (
+            <NoteForm
+              open={isFormOpen}
+              onOpenChange={handleFormClose}
+              note={editingItem.data}
+              userId={userId}
+            />
+          )}
+          {editingItem.type === "url" && (
+            <UrlForm
+              open={isFormOpen}
+              onOpenChange={handleFormClose}
+              url={editingItem.data}
+              userId={userId}
+            />
+          )}
+          {editingItem.type === "todo" && (
+            <TodoForm
+              open={isFormOpen}
+              onOpenChange={handleFormClose}
+              todo={editingItem.data}
+              userId={userId}
+            />
+          )}
+        </>
+      )}
     </div>
   )
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Plus, Search, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,14 +12,13 @@ import { createClient } from "@/lib/supabase/client"
 import { SidebarProvider } from "@/components/sidebar-provider"
 import { getBatchSharedWith } from "@/lib/sharing-actions"
 
-const supabase = createClient()
 const EMPTY_ARRAY: any[] = []
 
 interface Todo {
   id: string
   title: string
   description: string | null
-  status: "pending" | "in-progress" | "complete"
+  status: "pending" | "in-process" | "complete"
   is_favorite: boolean
   created_at: string
   updated_at: string
@@ -34,11 +33,12 @@ export function TodosClient({
   userId: string
   user?: any
 }) {
+  const supabase = useMemo(() => createClient(), [])
   const { data, mutate } = useSWR(
     `todos-${userId}`,
     async () => {
       try {
-        // Fetch owned todos
+        // Fetch only owned todos
         const { data: ownedData, error: ownedError } = await supabase
           .from("todos")
           .select("*")
@@ -50,41 +50,7 @@ export function TodosClient({
           throw ownedError
         }
 
-        // Fetch shared todos - Step 1: Get shared items
-        const { data: sharedItems, error: sharedItemsError } = await supabase
-          .from("shared_items")
-          .select("resource_id, permission")
-          .eq("shared_with_id", userId)
-          .eq("resource_type", "todos")
-        
-        if (sharedItemsError && sharedItemsError.code !== "PGRST205") {
-          console.error("Error fetching shared items:", sharedItemsError)
-          throw sharedItemsError
-        }
-
-        let sharedTodos: any[] = []
-        if (sharedItems && sharedItems.length > 0) {
-          // Step 2: Get the actual todos
-          const sharedIds = sharedItems.map(item => item.resource_id)
-          const { data: sharedTodosData, error: sharedTodosError } = await supabase
-            .from("todos")
-            .select("*")
-            .in("id", sharedIds)
-            .eq("is_deleted", false)
-          
-          if (sharedTodosError) {
-            console.error("Error fetching shared todos details:", sharedTodosError)
-            throw sharedTodosError
-          }
-
-          sharedTodos = (sharedTodosData || []).map(todo => ({
-            ...todo,
-            shared_permission: sharedItems.find(s => s.resource_id === todo.id)?.permission
-          }))
-        }
-
-        const allTodos = [...(ownedData || []), ...sharedTodos]
-        const sortedTodos = allTodos.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) as Todo[]
+        const sortedTodos = (ownedData || []).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) as Todo[]
 
         // Fetch shares info for owned todos
         const ownedIds = (ownedData || []).map(t => t.id)
@@ -132,13 +98,19 @@ export function TodosClient({
   }
 
   const filteredTodos = (todos as Todo[]).filter((todo) => {
+    // Only show self-created items on this page
+    if ((todo as any).user_id !== userId) return false
+
     const matchesSearch = todo.title.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesFavorite =
       favoriteFilter === "all" ||
       (favoriteFilter === "favorite" && todo.is_favorite) ||
       (favoriteFilter === "unfavorite" && !todo.is_favorite)
     const matchesStatus = statusFilter === "all" || todo.status === statusFilter
-    const matchesShared = sharedFilter === "all" || (sharedFilter === "shared" && sharesInfo[todo.id] && sharesInfo[todo.id].length > 0)
+    const matchesShared = 
+      sharedFilter === "all" || 
+      (sharedFilter === "shared" && sharesInfo[todo.id] && sharesInfo[todo.id].length > 0) ||
+      (sharedFilter === "unshare" && !sharesInfo[todo.id] || sharesInfo[todo.id].length === 0)
     return matchesSearch && matchesFavorite && matchesStatus && matchesShared
   })
 
@@ -178,50 +150,55 @@ export function TodosClient({
           )}
         </div>
         <Select value={favoriteFilter} onValueChange={setFavoriteFilter}>
-          <SelectTrigger className="w-full sm:w-[180px] bg-slate-900/50 border-slate-700 text-white">
+          <SelectTrigger className="w-full sm:w-[150px] bg-slate-950/20 text-white hover:cursor-pointer">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="bg-slate-800 border-slate-700">
-            <SelectItem value="all" className="text-white">
-              All Todos
+          <SelectContent className="bg-slate-950/40 border-cyan-500 backdrop-blur-sm">
+            <SelectItem value="all" className="text-white hover:text-white cursor-pointer transition-colors">
+              All
             </SelectItem>
-            <SelectItem value="favorite" className="text-white">
+            <SelectItem value="favorite" className="text-orange-500 hover:text-white cursor-pointer transition-colors">
               Favorites
             </SelectItem>
-            <SelectItem value="unfavorite" className="text-white">
+            <SelectItem value="unfavorite" className="text-green-500 hover:text-white cursor-pointer transition-colors">
               Unfavorites
             </SelectItem>
           </SelectContent>
         </Select>
+
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-[180px] bg-slate-900/50 border-slate-700 text-white">
+          <SelectTrigger className="w-full sm:w-[150px] bg-slate-950/20 text-white hover:cursor-pointer">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="bg-slate-800 border-slate-700">
-            <SelectItem value="all" className="text-white">
-              All
+          <SelectContent className="bg-slate-950/40 border-cyan-500 backdrop-blur-sm">
+            <SelectItem value="all" className="text-white hover:text-white cursor-pointer transition-colors">
+              All Status
             </SelectItem>
-            <SelectItem value="pending" className="text-white">
+            <SelectItem value="pending" className="text-yellow-500 hover:text-white cursor-pointer transition-colors">
               Pending
             </SelectItem>
-            <SelectItem value="in-progress" className="text-white">
+            <SelectItem value="in-process" className="text-blue-500 hover:text-white cursor-pointer transition-colors">
               In Progress
             </SelectItem>
-            <SelectItem value="complete" className="text-white">
+            <SelectItem value="complete" className="text-green-500 hover:text-white cursor-pointer transition-colors">
               Complete
             </SelectItem>
           </SelectContent>
         </Select>
+
         <Select value={sharedFilter} onValueChange={setSharedFilter}>
-          <SelectTrigger className="w-full sm:w-[180px] bg-slate-900/50 border-slate-700 text-white">
-            <SelectValue placeholder="Shared" />
+          <SelectTrigger className="w-full sm:w-[150px] bg-slate-950/20 text-white hover:cursor-pointer">
+            <SelectValue />
           </SelectTrigger>
-          <SelectContent className="bg-slate-800 border-slate-700">
-            <SelectItem value="all" className="text-white">
-              All
+          <SelectContent className="bg-slate-950/40 border-cyan-500 backdrop-blur-sm">
+            <SelectItem value="all" className="text-white hover:text-white cursor-pointer transition-colors">
+              All Items
             </SelectItem>
-            <SelectItem value="shared" className="text-white">
+            <SelectItem value="shared" className="text-indigo-500 hover:text-white cursor-pointer transition-colors">
               Shared
+            </SelectItem>
+            <SelectItem value="unshare" className="text-red-500 hover:text-white cursor-pointer transition-colors">
+              Unshare
             </SelectItem>
           </SelectContent>
         </Select>

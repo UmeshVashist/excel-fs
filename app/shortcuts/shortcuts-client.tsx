@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -30,14 +30,14 @@ export function ShortcutsClient({
   user: any
 }) {
   const [shortcuts, setShortcuts] = useState<Shortcut[]>(initialShortcuts)
-  const [filteredShortcuts, setFilteredShortcuts] = useState<Shortcut[]>(initialShortcuts)
   const [searchQuery, setSearchQuery] = useState("")
-  const [filter, setFilter] = useState("all")
+  const [favoriteFilter, setFavoriteFilter] = useState("all")
+  const [sharedFilter, setSharedFilter] = useState("all")
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingShortcut, setEditingShortcut] = useState<Shortcut | null>(null)
   const [sharesInfo, setSharesInfo] = useState<Record<string, any[]>>({})
 
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   // Sync state with props when server data refreshes
   useEffect(() => {
@@ -63,7 +63,7 @@ export function ShortcutsClient({
 
   const loadShortcuts = async () => {
     try {
-      // Fetch shortcuts where I am owner OR shared with me
+      // Fetch only owned shortcuts
       const { data: ownedData } = await supabase
         .from("shortcuts")
         .select("*")
@@ -71,34 +71,7 @@ export function ShortcutsClient({
         .eq("is_deleted", false)
         .order("created_at", { ascending: false })
 
-      const { data: sharedItems, error: sharedError } = await supabase
-        .from("shared_items")
-        .select("resource_id, permission")
-        .eq("shared_with_id", userId)
-        .eq("resource_type", "shortcuts")
-
-      if (sharedError && sharedError.code !== "PGRST205") throw sharedError
-
-      let allShortcuts = ownedData || []
-
-      if (sharedItems && sharedItems.length > 0) {
-        const sharedIds = sharedItems.map(s => s.resource_id)
-        const { data: sharedData } = await supabase
-          .from("shortcuts")
-          .select("*")
-          .in("id", sharedIds)
-          .eq("is_deleted", false)
-        
-        if (sharedData) {
-          const sharedWithPermissions = sharedData.map(s => ({
-            ...s,
-            shared_permission: sharedItems.find(item => item.resource_id === s.id)?.permission
-          }))
-          allShortcuts = [...allShortcuts, ...sharedWithPermissions]
-        }
-      }
-
-      setShortcuts(allShortcuts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()))
+      setShortcuts(ownedData || [])
     } catch (error: any) {
       if (error.code !== "PGRST205") {
         console.error("Error loading shortcuts:", error)
@@ -106,25 +79,30 @@ export function ShortcutsClient({
     }
   }
 
-  useEffect(() => {
-    let result = shortcuts
+  const filteredShortcuts = useMemo(() => {
+    let result = shortcuts.filter(s => s.user_id === userId)
 
-    // Apply search filter
     if (searchQuery) {
-      result = result.filter((s) => s.title.toLowerCase().includes(searchQuery.toLowerCase()))
+      result = result.filter((s) =>
+        s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        s.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
     }
 
-    // Apply favorite filter
-    if (filter === "favorites") {
+    if (favoriteFilter === "favorites") {
       result = result.filter((s) => s.is_favorite)
-    } else if (filter === "unfavorites") {
+    } else if (favoriteFilter === "unfavorites") {
       result = result.filter((s) => !s.is_favorite)
-    } else if (filter === "shared") {
-      result = result.filter((s) => sharesInfo[s.id] && sharesInfo[s.id].length > 0)
     }
 
-    setFilteredShortcuts(result)
-  }, [searchQuery, filter, shortcuts, sharesInfo])
+    if (sharedFilter === "shared") {
+      result = result.filter((s) => sharesInfo[s.id] && sharesInfo[s.id].length > 0)
+    } else if (sharedFilter === "unshare") {
+      result = result.filter((s) => !sharesInfo[s.id] || sharesInfo[s.id].length === 0)
+    }
+
+    return result
+  }, [shortcuts, searchQuery, favoriteFilter, sharedFilter, sharesInfo, userId])
 
   const handleAdd = () => {
     setEditingShortcut(null)
@@ -142,8 +120,44 @@ export function ShortcutsClient({
     loadShortcuts()
   }
 
-  const handleUpdate = () => {
-    loadShortcuts()
+  const handleToggleFavorite = async (id: string, currentFavorite: boolean) => {
+    const { error } = await supabase.from("shortcuts").update({ is_favorite: !currentFavorite }).eq("id", id)
+    if (!error) {
+      loadShortcuts()
+    }
+  }
+
+  const handleDelete = async (id: string, ownerId: string) => {
+    const isOwner = ownerId === userId
+
+    if (isOwner) {
+      if (confirm("Are you sure you want to move this shortcut to Recycle Bin?")) {
+        const { error } = await supabase
+          .from("shortcuts")
+          .update({ 
+            is_deleted: true, 
+            deleted_at: new Date().toISOString() 
+          })
+          .eq("id", id)
+        
+        if (!error) {
+          loadShortcuts()
+        }
+      }
+    } else {
+      if (confirm("This item was shared with you. Are you sure you want to remove it from your list?Check shared items table if items are no longer needed.")) {
+        const { error } = await supabase
+          .from("shared_items")
+          .delete()
+          .eq("resource_id", id)
+          .eq("shared_with_id", userId)
+          .eq("resource_type", "shortcuts")
+        
+        if (!error) {
+          loadShortcuts()
+        }
+      }
+    }
   }
 
   return (
@@ -151,7 +165,7 @@ export function ShortcutsClient({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-orange-500 mb-2">Shortcuts</h1>
-          <p className="text-cyan-500">Manage your Excel keyboard shortcuts</p>
+          <p className="text-cyan-500">Manage your keyboard shortcuts</p>
         </div>
         <Button
           onClick={handleAdd}
@@ -181,28 +195,49 @@ export function ShortcutsClient({
             </button>
           )}
         </div>
-        <Select value={filter} onValueChange={setFilter}>
-          <SelectTrigger className="w-full sm:w-[180px] bg-slate-900/50 border-slate-700 text-white">
+        <Select value={sharedFilter} onValueChange={setSharedFilter}>
+          <SelectTrigger className="w-full sm:w-[150px] bg-slate-950/20 text-white hover:cursor-pointer">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="bg-slate-800 border-slate-700">
-            <SelectItem value="all" className="text-white">
-              All Shortcuts
+          <SelectContent className="bg-slate-950/40 border-cyan-500 backdrop-blur-sm">
+            <SelectItem value="all" className="text-white hover:text-white cursor-pointer transition-colors">
+              All Items
             </SelectItem>
-            <SelectItem value="favorites" className="text-white">
+            <SelectItem value="shared" className="text-indigo-500 hover:text-white cursor-pointer transition-colors">
+              Shared
+            </SelectItem>
+            <SelectItem value="unshare" className="text-red-500 hover:text-white cursor-pointer transition-colors">
+              Unshare
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={favoriteFilter} onValueChange={setFavoriteFilter}>
+          <SelectTrigger className="w-full sm:w-[150px] bg-slate-950/20 text-white hover:cursor-pointer">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="bg-slate-950/40 border-cyan-500 backdrop-blur-sm">
+            <SelectItem value="all" className="text-white hover:text-white cursor-pointer transition-colors">
+              All
+            </SelectItem>
+            <SelectItem value="favorites" className="text-orange-500 hover:text-white cursor-pointer transition-colors">
               Favorites
             </SelectItem>
-            <SelectItem value="unfavorites" className="text-white">
+            <SelectItem value="unfavorites" className="text-green-500 hover:text-white cursor-pointer transition-colors">
               Unfavorites
-            </SelectItem>
-            <SelectItem value="shared" className="text-white">
-              Shared
             </SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      <ShortcutList shortcuts={filteredShortcuts} onEdit={handleEdit} onUpdate={handleUpdate} currentUserId={userId} sharesInfo={sharesInfo} />
+      <ShortcutList 
+        shortcuts={filteredShortcuts} 
+        onEdit={handleEdit} 
+        onUpdate={loadShortcuts} 
+        currentUserId={userId} 
+        sharesInfo={sharesInfo}
+        onToggleFavorite={handleToggleFavorite}
+        onDelete={handleDelete}
+      />
 
       <ShortcutForm open={isFormOpen} onOpenChange={handleFormClose} shortcut={editingShortcut} userId={userId} />
     </div>

@@ -11,6 +11,7 @@ import useSWR from "swr"
 import { createClient } from "@/lib/supabase/client"
 import { SidebarProvider } from "@/components/sidebar-provider"
 import { getBatchSharedWith } from "@/lib/sharing-actions"
+import { ShareModal } from "@/components/share-modal"
 
 const EMPTY_ARRAY: any[] = []
 
@@ -74,7 +75,11 @@ export function TodosClient({
         return { todos: [], sharesInfo: {} }
       }
     },
-    { fallbackData: { todos: initialTodos, sharesInfo: {} } },
+    { 
+      fallbackData: { todos: initialTodos, sharesInfo: {} },
+      revalidateOnFocus: false, // Prevent excessive reloads on window focus
+      revalidateOnReconnect: false 
+    },
   )
 
   const { todos = EMPTY_ARRAY, sharesInfo = {} as any } = data || {}
@@ -86,6 +91,9 @@ export function TodosClient({
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null)
 
+  const [autoShareInfo, setAutoShareInfo] = useState<{ resourceId: string; resourceType: string } | null>(null)
+  const [isAutoShareOpen, setIsAutoShareOpen] = useState(false)
+
   const handleEdit = (todo: Todo) => {
     setEditingTodo(todo)
     setIsFormOpen(true)
@@ -95,6 +103,11 @@ export function TodosClient({
     setIsFormOpen(false)
     setEditingTodo(null)
     mutate()
+  }
+
+  const handleAutoShare = (resourceId: string, resourceType: string) => {
+    setAutoShareInfo({ resourceId, resourceType })
+    setIsAutoShareOpen(true)
   }
 
   const filteredTodos = (todos as Todo[]).filter((todo) => {
@@ -231,7 +244,18 @@ export function TodosClient({
         todo={editingTodo}
         userId={userId}
         onUpdate={() => mutate()}
+        onSave={handleAutoShare}
       />
+
+      {autoShareInfo && (
+        <ShareModal
+          open={isAutoShareOpen}
+          onOpenChange={setIsAutoShareOpen}
+          resourceId={autoShareInfo.resourceId}
+          resourceType={autoShareInfo.resourceType}
+          ownerId={userId}
+        />
+      )}
     </div>
   )
 }

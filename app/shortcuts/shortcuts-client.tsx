@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -9,6 +9,7 @@ import { ShortcutList } from "@/components/shortcut-list"
 import { ShortcutForm } from "@/components/shortcut-form"
 import { createClient } from "@/lib/supabase/client"
 import { getBatchSharedWith } from "@/lib/sharing-actions"
+import { ShareModal } from "@/components/share-modal"
 
 interface Shortcut {
   id: string
@@ -36,28 +37,39 @@ export function ShortcutsClient({
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingShortcut, setEditingShortcut] = useState<Shortcut | null>(null)
   const [sharesInfo, setSharesInfo] = useState<Record<string, any[]>>({})
+  const lastFetchedIds = useRef<string>("")
+
+  const [autoShareInfo, setAutoShareInfo] = useState<{ resourceId: string; resourceType: string } | null>(null)
+  const [isAutoShareOpen, setIsAutoShareOpen] = useState(false)
 
   const supabase = useMemo(() => createClient(), [])
 
-  // Sync state with props when server data refreshes
+  // Sync state with props only when data actually changes
   useEffect(() => {
-    setShortcuts(initialShortcuts)
+    if (JSON.stringify(initialShortcuts) !== JSON.stringify(shortcuts)) {
+      setShortcuts(initialShortcuts)
+    }
   }, [initialShortcuts])
 
   useEffect(() => {
-    loadShares()
-  }, [shortcuts])
-
-  const loadShares = async () => {
     const ownerShortcutIds = shortcuts
       .filter(s => s.user_id === userId)
       .map(s => s.id)
+      .sort()
     
-    if (ownerShortcutIds.length > 0) {
-      const info = await getBatchSharedWith(ownerShortcutIds, "shortcuts")
+    const idsString = ownerShortcutIds.join(",")
+    if (idsString && idsString !== lastFetchedIds.current) {
+      lastFetchedIds.current = idsString
+      loadShares(ownerShortcutIds)
+    }
+  }, [shortcuts, userId])
+
+  const loadShares = async (ids: string[]) => {
+    try {
+      const info = await getBatchSharedWith(ids, "shortcuts")
       setSharesInfo(info)
-    } else {
-      setSharesInfo({})
+    } catch (error) {
+      console.error("Failed to load shares:", error)
     }
   }
 
@@ -118,6 +130,11 @@ export function ShortcutsClient({
     setIsFormOpen(false)
     setEditingShortcut(null)
     loadShortcuts()
+  }
+
+  const handleAutoShare = (resourceId: string, resourceType: string) => {
+    setAutoShareInfo({ resourceId, resourceType })
+    setIsAutoShareOpen(true)
   }
 
   const handleToggleFavorite = async (id: string, currentFavorite: boolean) => {
@@ -239,7 +256,23 @@ export function ShortcutsClient({
         onDelete={handleDelete}
       />
 
-      <ShortcutForm open={isFormOpen} onOpenChange={handleFormClose} shortcut={editingShortcut} userId={userId} />
+      <ShortcutForm
+        open={isFormOpen}
+        onOpenChange={handleFormClose}
+        shortcut={editingShortcut}
+        userId={userId}
+        onSave={handleAutoShare}
+      />
+
+      {autoShareInfo && (
+        <ShareModal
+          open={isAutoShareOpen}
+          onOpenChange={setIsAutoShareOpen}
+          resourceId={autoShareInfo.resourceId}
+          resourceType={autoShareInfo.resourceType}
+          ownerId={userId}
+        />
+      )}
     </div>
   )
 }

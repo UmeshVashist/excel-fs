@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -9,6 +9,7 @@ import { UrlsList } from "@/components/urls-list"
 import { UrlForm } from "@/components/url-form"
 import { createClient } from "@/lib/supabase/client"
 import { getBatchSharedWith } from "@/lib/sharing-actions"
+import { ShareModal } from "@/components/share-modal"
 
 interface Url {
   id: string
@@ -37,27 +38,43 @@ export function UrlsClient({
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingUrl, setEditingUrl] = useState<Url | null>(null)
   const [sharesInfo, setSharesInfo] = useState<Record<string, any[]>>({})
+  const lastFetchedIds = useRef<string>("")
+
+  const [autoShareInfo, setAutoShareInfo] = useState<{ resourceId: string; resourceType: string } | null>(null)
+  const [isAutoShareOpen, setIsAutoShareOpen] = useState(false)
 
   const supabase = useMemo(() => createClient(), [])
 
+  // Sync state with props only when data actually changes
   useEffect(() => {
-    loadUrls()
-  }, [])
+    if (JSON.stringify(initialUrls) !== JSON.stringify(urls)) {
+      setUrls(initialUrls)
+    }
+  }, [initialUrls, urls])
 
   useEffect(() => {
-    loadShares()
-  }, [urls])
-
-  const loadShares = async () => {
     const ownerUrlIds = urls
       .filter(u => u.user_id === userId)
       .map(u => u.id)
+      .sort()
     
-    if (ownerUrlIds.length > 0) {
-      const info = await getBatchSharedWith(ownerUrlIds, "urls")
+    const idsString = ownerUrlIds.join(",")
+    if (idsString !== lastFetchedIds.current) {
+      lastFetchedIds.current = idsString
+      if (idsString) {
+        loadShares(ownerUrlIds)
+      } else {
+        setSharesInfo({})
+      }
+    }
+  }, [urls, userId])
+
+  const loadShares = async (ids: string[]) => {
+    try {
+      const info = await getBatchSharedWith(ids, "urls")
       setSharesInfo(info)
-    } else {
-      setSharesInfo({})
+    } catch (error) {
+      console.error("Failed to load shares:", error)
     }
   }
 
@@ -119,6 +136,11 @@ export function UrlsClient({
     setIsFormOpen(false)
     setEditingUrl(null)
     loadUrls()
+  }
+
+  const handleAutoShare = (resourceId: string, resourceType: string) => {
+    setAutoShareInfo({ resourceId, resourceType })
+    setIsAutoShareOpen(true)
   }
 
   const handleToggleFavorite = async (id: string, currentFavorite: boolean) => {
@@ -240,7 +262,23 @@ export function UrlsClient({
         onDelete={handleDelete}
       />
 
-      <UrlForm open={isFormOpen} onOpenChange={handleFormClose} url={editingUrl} userId={userId} />
+      <UrlForm
+        open={isFormOpen}
+        onOpenChange={handleFormClose}
+        url={editingUrl}
+        userId={userId}
+        onSave={handleAutoShare}
+      />
+
+      {autoShareInfo && (
+        <ShareModal
+          open={isAutoShareOpen}
+          onOpenChange={setIsAutoShareOpen}
+          resourceId={autoShareInfo.resourceId}
+          resourceType={autoShareInfo.resourceType}
+          ownerId={userId}
+        />
+      )}
     </div>
   )
 }

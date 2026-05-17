@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -9,6 +9,7 @@ import { NotesList } from "@/components/notes-list"
 import { NoteForm } from "@/components/note-form"
 import { createClient } from "@/lib/supabase/client"
 import { getBatchSharedWith } from "@/lib/sharing-actions"
+import { ShareModal } from "@/components/share-modal"
 
 interface Note {
   id: string
@@ -35,28 +36,42 @@ export function NotesClient({
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingNote, setEditingNote] = useState<Note | null>(null)
   const [sharesInfo, setSharesInfo] = useState<Record<string, any[]>>({})
+  const lastFetchedIds = useRef<string>("")
+
+  const [autoShareInfo, setAutoShareInfo] = useState<{ resourceId: string; resourceType: string } | null>(null)
+  const [isAutoShareOpen, setIsAutoShareOpen] = useState(false)
 
   const supabase = useMemo(() => createClient(), [])
 
-  // Sync state with props when server data refreshes
+  // Sync state with props only when data actually changes
   useEffect(() => {
-    setNotes(initialNotes)
+    if (JSON.stringify(initialNotes) !== JSON.stringify(notes)) {
+      setNotes(initialNotes)
+    }
   }, [initialNotes])
 
   useEffect(() => {
-    loadShares()
-  }, [notes])
-
-  const loadShares = async () => {
     const ownerNoteIds = notes
       .filter(n => n.user_id === userId)
       .map(n => n.id)
+      .sort()
     
-    if (ownerNoteIds.length > 0) {
-      const info = await getBatchSharedWith(ownerNoteIds, "notes")
-      setSharesInfo(info)
-    } else {
+    const idsString = ownerNoteIds.join(",")
+    if (idsString && idsString !== lastFetchedIds.current) {
+      lastFetchedIds.current = idsString
+      loadShares(ownerNoteIds)
+    } else if (!idsString) {
       setSharesInfo({})
+      lastFetchedIds.current = ""
+    }
+  }, [notes, userId])
+
+  const loadShares = async (ids: string[]) => {
+    try {
+      const info = await getBatchSharedWith(ids, "notes")
+      setSharesInfo(info)
+    } catch (error) {
+      console.error("Failed to load shares:", error)
     }
   }
 
@@ -115,6 +130,11 @@ export function NotesClient({
     setIsFormOpen(false)
     setEditingNote(null)
     loadNotes()
+  }
+
+  const handleAutoShare = (resourceId: string, resourceType: string) => {
+    setAutoShareInfo({ resourceId, resourceType })
+    setIsAutoShareOpen(true)
   }
 
   const handleToggleFavorite = async (id: string, currentFavorite: boolean) => {
@@ -236,7 +256,23 @@ export function NotesClient({
         onDelete={handleDelete}
       />
 
-      <NoteForm open={isFormOpen} onOpenChange={handleFormClose} note={editingNote} userId={userId} />
+      <NoteForm
+        open={isFormOpen}
+        onOpenChange={handleFormClose}
+        note={editingNote}
+        userId={userId}
+        onSave={handleAutoShare}
+      />
+
+      {autoShareInfo && (
+        <ShareModal
+          open={isAutoShareOpen}
+          onOpenChange={setIsAutoShareOpen}
+          resourceId={autoShareInfo.resourceId}
+          resourceType={autoShareInfo.resourceType}
+          ownerId={userId}
+        />
+      )}
     </div>
   )
 }

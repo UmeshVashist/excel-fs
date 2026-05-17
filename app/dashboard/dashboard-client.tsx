@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -22,6 +22,7 @@ import { NoteForm } from "@/components/note-form"
 import { UrlForm } from "@/components/url-form"
 import { TodoForm } from "@/components/todo-form"
 import { Todo } from "@/types/todo"
+import { ShareModal } from "@/components/share-modal"
 
 interface DashboardClientProps {
   userId: string
@@ -42,7 +43,7 @@ export function DashboardClient({
   initialTodosCount,
   initialSharedCount
 }: DashboardClientProps) {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const searchParams = useSearchParams()
   const [searchQuery, setSearchQuery] = useState("")
   const [searchCategory, setSearchCategory] = useState("all")
@@ -62,8 +63,16 @@ export function DashboardClient({
   const [editingItem, setEditingItem] = useState<{ type: string; data: any } | null>(null)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
+  const lastSearchKey = useRef<string>("")
+
+  const [autoShareInfo, setAutoShareInfo] = useState<{ resourceId: string; resourceType: string } | null>(null)
+  const [isAutoShareOpen, setIsAutoShareOpen] = useState(false)
 
   const handleUpdate = async (isManual = false) => {
+    const searchKey = `${searchQuery}-${searchCategory}-${favoriteFilter}-${sharedFilter}`
+    if (!isManual && searchKey === lastSearchKey.current) return
+    lastSearchKey.current = searchKey
+
     // We search if there's a query OR if it's the "new" category OR if it's a manual search trigger OR if any filter is active
     if (!isManual && !searchQuery.trim() && searchCategory !== "new" && favoriteFilter === "all" && sharedFilter === "all") {
       setSearchResults({ formulas: [], shortcuts: [], notes: [], urls: [], todos: [], sharesInfo: {} })
@@ -367,6 +376,11 @@ export function DashboardClient({
     }
   }
 
+  const handleAutoShare = (resourceId: string, resourceType: string) => {
+    setAutoShareInfo({ resourceId, resourceType })
+    setIsAutoShareOpen(true)
+  }
+
   useEffect(() => {
     setIsMounted(true)
   }, [])
@@ -662,6 +676,7 @@ export function DashboardClient({
           onOpenChange={handleFormClose}
           formula={editingItem.data}
           userId={userId}
+          onSave={handleAutoShare}
         />
       )}
       {editingItem?.type === "shortcut" && (
@@ -670,6 +685,7 @@ export function DashboardClient({
           onOpenChange={handleFormClose}
           shortcut={editingItem.data}
           userId={userId}
+          onSave={handleAutoShare}
         />
       )}
       {editingItem?.type === "note" && (
@@ -678,6 +694,7 @@ export function DashboardClient({
           onOpenChange={handleFormClose}
           note={editingItem.data}
           userId={userId}
+          onSave={handleAutoShare}
         />
       )}
       {editingItem?.type === "url" && (
@@ -686,6 +703,7 @@ export function DashboardClient({
           onOpenChange={handleFormClose}
           url={editingItem.data}
           userId={userId}
+          onSave={handleAutoShare}
         />
       )}
       {editingItem?.type === "todo" && (
@@ -695,6 +713,17 @@ export function DashboardClient({
           todo={editingItem.data}
           userId={userId}
           onUpdate={handleUpdate}
+          onSave={handleAutoShare}
+        />
+      )}
+
+      {autoShareInfo && (
+        <ShareModal
+          open={isAutoShareOpen}
+          onOpenChange={setIsAutoShareOpen}
+          resourceId={autoShareInfo.resourceId}
+          resourceType={autoShareInfo.resourceType}
+          ownerId={userId}
         />
       )}
     </div>

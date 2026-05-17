@@ -31,18 +31,21 @@ export function TodoForm({
   todo,
   userId,
   onUpdate,
+  onSave,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   todo?: Todo | null
   userId: string
   onUpdate?: () => void
+  onSave?: (resourceId: string, resourceType: string) => void
 }) {
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [remark, setRemark] = useState("")
   const [status, setStatus] = useState<"pending" | "in-process" | "complete">("pending")
   const [isFavorite, setIsFavorite] = useState(false)
+  const [shareAfterSave, setShareAfterSave] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
   const router = useRouter()
@@ -128,6 +131,10 @@ export function TodoForm({
 
         if (!error && data) {
           await logHistory({ resourceId: data.id, resourceType: "todos", action: "created", newValue: title })
+          
+          if (shareAfterSave && onSave) {
+            onSave(data.id, "todos")
+          }
         }
       }
 
@@ -136,6 +143,7 @@ export function TodoForm({
       setRemark("")
       setStatus("pending")
       setIsFavorite(false)
+      setShareAfterSave(false)
 
       onUpdate?.()
       onOpenChange(false)
@@ -231,6 +239,20 @@ export function TodoForm({
                   Mark as favorite
                 </Label>
               </div>
+
+              {!todo && (
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="shareAfterSave"
+                    checked={shareAfterSave}
+                    onCheckedChange={(checked) => setShareAfterSave(checked as boolean)}
+                    className="border-slate-700 data-[state=checked]:bg-indigo-500 data-[state=checked]:text-white bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900"
+                  />
+                  <Label htmlFor="shareAfterSave" className="cursor-pointer text-indigo-400 font-medium">
+                    Share after saving
+                  </Label>
+                </div>
+              )}
               <div className="flex gap-3 pt-4">
                 <Button
                   type="submit"

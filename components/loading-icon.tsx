@@ -1,6 +1,6 @@
-export function LoadingIcon() {
+export function LoadingIcon({ className }: { className?: string }) {
   return (
-    <div className="flex items-center justify-center w-full h-full min-h-[400px]">
+    <div className={`flex items-center justify-center w-full h-full ${className || "min-h-[400px]"}`}>
       <div className="loader-wrapper">
         <span className="loader-letter">L</span>
         <span className="loader-letter">o</span>

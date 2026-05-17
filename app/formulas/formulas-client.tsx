@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -9,6 +9,7 @@ import { FormulaList } from "@/components/formula-list"
 import { FormulaForm } from "@/components/formula-form"
 import { createClient } from "@/lib/supabase/client"
 import { getBatchSharedWith } from "@/lib/sharing-actions"
+import { ShareModal } from "@/components/share-modal"
 
 interface Formula {
   id: string
@@ -36,28 +37,42 @@ export function FormulasClient({
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingFormula, setEditingFormula] = useState<Formula | null>(null)
   const [sharesInfo, setSharesInfo] = useState<Record<string, any[]>>({})
+  const lastFetchedIds = useRef<string>("")
+
+  const [autoShareInfo, setAutoShareInfo] = useState<{ resourceId: string; resourceType: string } | null>(null)
+  const [isAutoShareOpen, setIsAutoShareOpen] = useState(false)
 
   const supabase = useMemo(() => createClient(), [])
 
-  // Sync state with props when server data refreshes
+  // Sync state with props only when data actually changes
   useEffect(() => {
-    setFormulas(initialFormulas)
+    if (JSON.stringify(initialFormulas) !== JSON.stringify(formulas)) {
+      setFormulas(initialFormulas)
+    }
   }, [initialFormulas])
 
   useEffect(() => {
-    loadShares()
-  }, [formulas])
-
-  const loadShares = async () => {
     const ownerFormulaIds = formulas
       .filter(f => f.user_id === userId)
       .map(f => f.id)
+      .sort()
     
-    if (ownerFormulaIds.length > 0) {
-      const info = await getBatchSharedWith(ownerFormulaIds, "formulas")
-      setSharesInfo(info)
-    } else {
+    const idsString = ownerFormulaIds.join(",")
+    if (idsString && idsString !== lastFetchedIds.current) {
+      lastFetchedIds.current = idsString
+      loadShares(ownerFormulaIds)
+    } else if (!idsString) {
       setSharesInfo({})
+      lastFetchedIds.current = ""
+    }
+  }, [formulas, userId])
+
+  const loadShares = async (ids: string[]) => {
+    try {
+      const info = await getBatchSharedWith(ids, "formulas")
+      setSharesInfo(info)
+    } catch (error) {
+      console.error("Failed to load shares:", error)
     }
   }
 
@@ -123,6 +138,11 @@ export function FormulasClient({
     setIsFormOpen(false)
     setEditingFormula(null)
     loadFormulas()
+  }
+
+  const handleAutoShare = (resourceId: string, resourceType: string) => {
+    setAutoShareInfo({ resourceId, resourceType })
+    setIsAutoShareOpen(true)
   }
 
   const handleToggleFavorite = async (id: string, currentFavorite: boolean) => {
@@ -245,7 +265,23 @@ export function FormulasClient({
         onDelete={handleDelete}
       />
 
-      <FormulaForm open={isFormOpen} onOpenChange={handleFormClose} formula={editingFormula} userId={userId} />
+      <FormulaForm
+        open={isFormOpen}
+        onOpenChange={handleFormClose}
+        formula={editingFormula}
+        userId={userId}
+        onSave={handleAutoShare}
+      />
+
+      {autoShareInfo && (
+        <ShareModal
+          open={isAutoShareOpen}
+          onOpenChange={setIsAutoShareOpen}
+          resourceId={autoShareInfo.resourceId}
+          resourceType={autoShareInfo.resourceType}
+          ownerId={userId}
+        />
+      )}
     </div>
   )
 }

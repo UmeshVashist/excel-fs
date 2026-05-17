@@ -220,8 +220,8 @@ export function ShareModal({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-slate-800 border-slate-700">
-                <SelectItem value="view" className="cursor-pointer">View</SelectItem>
-                <SelectItem value="edit" className="cursor-pointer">Edit</SelectItem>
+                <SelectItem value="view" className="cursor-pointer text-purple-500">View</SelectItem>
+                <SelectItem value="edit" className="cursor-pointer text-cyan-500">Edit</SelectItem>
               </SelectContent>
             </Select>
             <Button
@@ -276,8 +276,8 @@ export function ShareModal({
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="bg-slate-800 border-slate-700">
-                            <SelectItem value="view" className="text-[10px] cursor-pointer">Viewer</SelectItem>
-                            <SelectItem value="edit" className="text-[10px] cursor-pointer">Editor</SelectItem>
+                            <SelectItem value="view" className="text-[10px] text-purple-500 cursor-pointer">Viewer</SelectItem>
+                            <SelectItem value="edit" className="text-[10px] text-cyan-500 cursor-pointer">Editor</SelectItem>
                           </SelectContent>
                         </Select>
                         <button

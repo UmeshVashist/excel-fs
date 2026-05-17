@@ -27,17 +27,20 @@ export function UrlForm({
   onOpenChange,
   url,
   userId,
+  onSave,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   url?: Url | null
   userId: string
+  onSave?: (resourceId: string, resourceType: string) => void
 }) {
   const [title, setTitle] = useState("")
   const [urlText, setUrlText] = useState("")
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [isFavorite, setIsFavorite] = useState(false)
+  const [shareAfterSave, setShareAfterSave] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
   const router = useRouter()
@@ -102,6 +105,10 @@ export function UrlForm({
 
         if (!error && data) {
           await logHistory({ resourceId: data.id, resourceType: "urls", action: "created", newValue: title })
+          
+          if (shareAfterSave && onSave) {
+            onSave(data.id, "urls")
+          }
         }
       }
 
@@ -110,6 +117,7 @@ export function UrlForm({
       setUsername("")
       setPassword("")
       setIsFavorite(false)
+      setShareAfterSave(false)
 
       onOpenChange(false)
       router.refresh()
@@ -189,6 +197,20 @@ export function UrlForm({
                   Mark as favorite
                 </Label>
               </div>
+
+              {!url && (
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="shareAfterSave"
+                    checked={shareAfterSave}
+                    onCheckedChange={(checked) => setShareAfterSave(checked as boolean)}
+                    className="border-slate-700 data-[state=checked]:bg-indigo-500 data-[state=checked]:text-white bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900"
+                  />
+                  <Label htmlFor="shareAfterSave" className="cursor-pointer text-indigo-400 font-medium">
+                    Share after saving
+                  </Label>
+                </div>
+              )}
               <div className="flex gap-3 pt-4">
                 <Button
                   type="submit"

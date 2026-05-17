@@ -27,16 +27,19 @@ export function ShortcutForm({
   onOpenChange,
   shortcut,
   userId,
+  onSave,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   shortcut?: Shortcut | null
   userId: string
+  onSave?: (resourceId: string, resourceType: string) => void
 }) {
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [shortcutText, setShortcutText] = useState("")
   const [isFavorite, setIsFavorite] = useState(false)
+  const [shareAfterSave, setShareAfterSave] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
   const router = useRouter()
@@ -97,9 +100,14 @@ export function ShortcutForm({
 
         if (!error && data) {
           await logHistory({ resourceId: data.id, resourceType: "shortcuts", action: "created", newValue: title })
+          
+          if (shareAfterSave && onSave) {
+            onSave(data.id, "shortcuts")
+          }
         }
       }
 
+      setShareAfterSave(false)
       onOpenChange(false)
       router.refresh()
     } catch (error) {
@@ -167,6 +175,20 @@ export function ShortcutForm({
                   Mark as favorite
                 </Label>
               </div>
+
+              {!shortcut && (
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="shareAfterSave"
+                    checked={shareAfterSave}
+                    onCheckedChange={(checked) => setShareAfterSave(checked as boolean)}
+                    className="border-slate-700 data-[state=checked]:bg-indigo-500 data-[state=checked]:text-white bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900"
+                  />
+                  <Label htmlFor="shareAfterSave" className="cursor-pointer text-indigo-400 font-medium">
+                    Share after saving
+                  </Label>
+                </div>
+              )}
               <div className="flex gap-3 pt-4">
                 <Button
                   type="submit"

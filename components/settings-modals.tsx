@@ -18,6 +18,7 @@ import { AlertCircle, Eye, EyeOff, UserCircle, Lock, AlertTriangle, Trash2, Rota
 import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { mutate } from "swr"
+import { LoadingIcon } from "@/components/loading-icon"
 
 interface DeletedItem {
   id: string
@@ -71,42 +72,47 @@ export function SettingsModals({ type, open, onOpenChange, user, onUpdate }: Set
     setIsLoading(true)
     try {
       const tables: ("formulas" | "notes" | "urls" | "todos" | "shortcuts")[] = ["formulas", "notes", "urls", "todos", "shortcuts"]
-      let allDeleted: DeletedItem[] = []
+      
+      const thirtyDaysAgo = new Date()
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+      const expiryStr = thirtyDaysAgo.toISOString()
 
-      for (const table of tables) {
-        // First, handle auto-delete (permanently remove items older than 30 days)
-        const thirtyDaysAgo = new Date()
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-        
+      // Perform all deletions and fetches in parallel for maximum speed
+      const results = await Promise.all(tables.map(async (table) => {
+        // 1. Delete expired items
         await supabase
           .from(table)
           .delete()
           .eq("user_id", user.id)
           .eq("is_deleted", true)
-          .lt("deleted_at", thirtyDaysAgo.toISOString())
+          .lt("deleted_at", expiryStr)
 
-        // Fetch deleted items for the current table
+        // 2. Fetch remaining deleted items
         const { data, error } = await supabase
           .from(table)
           .select("id, title, deleted_at")
           .eq("user_id", user.id)
           .eq("is_deleted", true)
-        
-        // Handle shortcuts separately if they have different column names
-        // But checking shortcut-list.tsx, it uses 'title'
-        if (data && !error) {
-          allDeleted = [...allDeleted, ...data.map(item => ({
-            id: item.id,
-            type: table.slice(0, -1) as any, // Remove 's' for singular type
-            title: item.title,
-            deleted_at: item.deleted_at
-          }))]
-        } else if (error) {
-          console.error(`Error fetching from ${table}:`, error)
-        }
-      }
 
-      setDeletedItems(allDeleted.sort((a, b) => new Date(b.deleted_at).getTime() - new Date(a.deleted_at).getTime()))
+        if (error) {
+          console.error(`Error fetching from ${table}:`, error)
+          return []
+        }
+
+        return (data || []).map(item => ({
+          id: item.id,
+          type: table.slice(0, -1) as any,
+          title: item.title,
+          deleted_at: item.deleted_at
+        }))
+      }))
+
+      // Flatten and sort the results
+      const allDeleted = results.flat().sort((a, b) => 
+        new Date(b.deleted_at).getTime() - new Date(a.deleted_at).getTime()
+      )
+
+      setDeletedItems(allDeleted)
     } catch (error) {
       console.error("Error fetching deleted items:", error)
     } finally {
@@ -145,13 +151,13 @@ export function SettingsModals({ type, open, onOpenChange, user, onUpdate }: Set
     try {
       const itemsToRestore = deletedItems.filter(item => selectedIds.has(item.id))
       
-      for (const item of itemsToRestore) {
+      await Promise.all(itemsToRestore.map(async (item) => {
         const table = item.type === "shortcut" ? "shortcuts" : `${item.type}s`
-        await supabase
+        return supabase
           .from(table)
           .update({ is_deleted: false, deleted_at: null })
           .eq("id", item.id)
-      }
+      }))
 
       setMessage({ type: "success", text: `Restored ${selectedIds.size} items successfully!` })
       fetchDeletedItems()
@@ -178,13 +184,13 @@ export function SettingsModals({ type, open, onOpenChange, user, onUpdate }: Set
     try {
       const itemsToDelete = deletedItems.filter(item => selectedIds.has(item.id))
       
-      for (const item of itemsToDelete) {
+      await Promise.all(itemsToDelete.map(async (item) => {
         const table = item.type === "shortcut" ? "shortcuts" : `${item.type}s`
-        await supabase
+        return supabase
           .from(table)
           .delete()
           .eq("id", item.id)
-      }
+      }))
 
       setMessage({ type: "success", text: `Permanently deleted ${selectedIds.size} items!` })
       fetchDeletedItems()
@@ -432,7 +438,11 @@ export function SettingsModals({ type, open, onOpenChange, user, onUpdate }: Set
             </div>
 
             <ScrollArea className="h-[380px] w-full rounded-xl border border-white/5 bg-black/10 backdrop-blur-sm overflow-hidden">
-              {filteredBinItems.length === 0 ? (
+              {isLoading ? (
+                <div className="flex items-center justify-center h-full min-h-[300px]">
+                  <LoadingIcon className="min-h-0" />
+                </div>
+              ) : filteredBinItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-slate-500 space-y-3 px-4 text-center">
                   <div className="p-3 rounded-full bg-white/5 border border-white/5">
                     <Trash2 className="h-6 w-6 opacity-20" />

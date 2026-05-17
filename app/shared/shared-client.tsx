@@ -5,13 +5,14 @@ import { createClient } from "@/lib/supabase/client"
 import { GlassBackground } from "@/components/glass-background"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, X, Users, Loader2 } from "lucide-react"
+import { Search, X, Users } from "lucide-react"
 import { FormulaList } from "@/components/formula-list"
 import { ShortcutList } from "@/components/shortcut-list"
 import { NotesList } from "@/components/notes-list"
 import { UrlsList } from "@/components/urls-list"
 import { TodoItem } from "@/components/todo-item"
 import { getBatchSharedWith } from "@/lib/sharing-actions"
+import { LoadingIcon } from "@/components/loading-icon"
 
 import { ShortcutForm } from "@/components/shortcut-form"
 import { NoteForm } from "@/components/note-form"
@@ -212,9 +213,7 @@ export default function SharedClient({ userId }: { userId: string }) {
         </div>
 
         {isLoading ? (
-          <div className="flex justify-center py-20">
-            <Loader2 className="h-12 w-12 animate-spin text-indigo-500" />
-          </div>
+          <LoadingIcon />
         ) : (
           <div className="space-y-12">
             {(category === "all" || category === "formulas") && filterItems(items.formulas).length > 0 && (

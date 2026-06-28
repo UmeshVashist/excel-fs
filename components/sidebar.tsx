@@ -149,10 +149,13 @@ export function Sidebar({ user }: { user?: any }) {
         
         {profile && (
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+             <DropdownMenuTrigger asChild>
               <div className="flex items-center gap-3 px-1 py-2 mt-2 cursor-pointer hover:bg-white/5 rounded-lg transition-colors group">
-                <div className="w-10 h-10 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center group-hover:border-cyan-500/50 transition-colors">
-                  <User className="h-5 w-5 text-cyan-400" />
+                <div className="relative overflow-hidden rounded-full p-[1.5px] w-10 h-10 shrink-0">
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300%] aspect-square rounded-full bg-[conic-gradient(from_0deg,#4285f4,#34a853,#fbbc05,#ea4335,#4285f4)] animate-[border-spin_6s_linear_infinite] z-0 pointer-events-none" />
+                  <div className="relative z-10 w-full h-full rounded-full bg-slate-950 flex items-center justify-center">
+                    <User className="h-5 w-5 text-cyan-400" />
+                  </div>
                 </div>
                 <div className="flex flex-col min-w-0">
                   <span className="text-sm font-semibold text-slate-100 truncate">
@@ -205,17 +208,25 @@ export function Sidebar({ user }: { user?: any }) {
         {menuItems.map((item) => {
           const isActive = pathname === item.href
           return (
-            <Link key={item.href} href={item.href}>
-              <Button
-                variant="ghost"
-                className={cn(
-                  "w-full justify-start gap-3 rounded-3xl px-4 py-3 text-slate-200 hover:text-white hover:bg-white/10 transition-all",
-                  isActive && "bg-cyan-500/15 text-cyan-100 ring-1 ring-cyan-400/30",
-                )}
-              >
-                <item.icon className={cn("h-5 w-5", item.color)} />
-                {item.name}
-              </Button>
+            <Link key={item.href} href={item.href} className="block w-full">
+              {isActive ? (
+                <div className="relative overflow-hidden rounded-3xl p-[1.5px] w-full">
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300%] aspect-square rounded-full bg-[conic-gradient(from_0deg,#4285f4,#34a853,#fbbc05,#ea4335,#4285f4)] animate-[border-spin_6s_linear_infinite] z-0 pointer-events-none" />
+                  <button
+                    className="relative z-10 w-full flex items-center justify-start gap-3 rounded-3xl px-4 py-3 bg-slate-950 text-white font-semibold border border-white/10 outline-none transition-all cursor-pointer"
+                  >
+                    <item.icon className={cn("h-5 w-5", item.color)} />
+                    {item.name}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  className="w-full flex items-center justify-start gap-3 rounded-3xl px-4 py-3 text-slate-200 hover:text-white hover:bg-white/10 outline-none transition-all cursor-pointer"
+                >
+                  <item.icon className={cn("h-5 w-5", item.color)} />
+                  {item.name}
+                </button>
+              )}
             </Link>
           )
         })}
@@ -227,13 +238,16 @@ export function Sidebar({ user }: { user?: any }) {
       </div>
 
       <div className="p-4 border-t border-white/10">
-        <button
-          onClick={handleLogout}
-          className="btn-custom btn-custom-red w-full flex items-center justify-start gap-3 px-0"
-        >
-          <LogOut className="h-5 w-5 text-red-500" />
-          Logout
-        </button>
+        <div className="relative overflow-hidden rounded-xl p-[1.5px] w-full">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300%] aspect-square rounded-full bg-[conic-gradient(from_0deg,#ef4444,#b91c1c,#991b1b,#ef4444)] animate-[border-spin_6s_linear_infinite] z-0 pointer-events-none" />
+          <button
+            onClick={handleLogout}
+            className="relative z-10 w-full flex items-center justify-start gap-3 px-4 py-2.5 rounded-xl bg-slate-950 text-slate-200 hover:text-white transition-all cursor-pointer"
+          >
+            <LogOut className="h-5 w-5 text-red-500" />
+            <span>Logout</span>
+          </button>
+        </div>
       </div>
 
       <SettingsModals 

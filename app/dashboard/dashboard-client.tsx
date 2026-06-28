@@ -437,62 +437,80 @@ export function DashboardClient({
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <Link href="/formulas" className="block">
-          <Card className="border text-center border-cyan-500 bg-white/5 rounded-lg backdrop-blur-2xl transition-all duration-1000 card-hover-cyan hover:scale-105 h-full">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-cyan-500 text-lg">Formulas</CardTitle>
-              <CardDescription className="text-cyan-500 text-2xl font-bold">{initialFormulasCount}</CardDescription>
-            </CardHeader>
-          </Card>
+        <Link href="/formulas" className="block h-full">
+          <div className="relative overflow-hidden rounded-2xl p-[2px] transition-all duration-500 hover:scale-105 h-full">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300%] aspect-square rounded-full bg-[conic-gradient(from_0deg,#4285f4,#34a853,#fbbc05,#ea4335,#4285f4)] animate-[border-spin_6s_linear_infinite] z-0 pointer-events-none" />
+            <Card className="border text-center border-cyan-500/30 bg-slate-950/90 rounded-[14px] backdrop-blur-2xl card-hover-cyan h-full relative z-10">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-cyan-500 text-lg">Formulas</CardTitle>
+                <CardDescription className="text-cyan-500 text-2xl font-bold">{initialFormulasCount}</CardDescription>
+              </CardHeader>
+            </Card>
+          </div>
         </Link>
 
-        <Link href="/shortcuts" className="block">
-          <Card className="border text-center border-orange-500 bg-white/5 rounded-lg backdrop-blur-2xl transition-all duration-1000 card-hover-orange hover:scale-105 h-full">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-orange-500 text-lg">Shortcuts</CardTitle>
-              <CardDescription className="text-orange-500 text-2xl font-bold">{initialShortcutsCount}</CardDescription>
-            </CardHeader>
-          </Card>
+        <Link href="/shortcuts" className="block h-full">
+          <div className="relative overflow-hidden rounded-2xl p-[2px] transition-all duration-500 hover:scale-105 h-full">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300%] aspect-square rounded-full bg-[conic-gradient(from_0deg,#4285f4,#34a853,#fbbc05,#ea4335,#4285f4)] animate-[border-spin_6s_linear_infinite] z-0 pointer-events-none" />
+            <Card className="border text-center border-orange-500/30 bg-slate-950/90 rounded-[14px] backdrop-blur-2xl card-hover-orange h-full relative z-10">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-orange-500 text-lg">Shortcuts</CardTitle>
+                <CardDescription className="text-orange-500 text-2xl font-bold">{initialShortcutsCount}</CardDescription>
+              </CardHeader>
+            </Card>
+          </div>
         </Link>
 
-        <Link href="/notes" className="block">
-          <Card className="border text-center border-cyan-500 bg-white/5 rounded-lg backdrop-blur-2xl transition-all duration-1000 card-hover-cyan hover:scale-105 h-full">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-cyan-500 text-lg">Notes</CardTitle>
-              <CardDescription className="text-cyan-500 text-2xl font-bold">{initialNotesCount}</CardDescription>
-            </CardHeader>
-          </Card>
+        <Link href="/notes" className="block h-full">
+          <div className="relative overflow-hidden rounded-2xl p-[2px] transition-all duration-500 hover:scale-105 h-full">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300%] aspect-square rounded-full bg-[conic-gradient(from_0deg,#4285f4,#34a853,#fbbc05,#ea4335,#4285f4)] animate-[border-spin_6s_linear_infinite] z-0 pointer-events-none" />
+            <Card className="border text-center border-cyan-500/30 bg-slate-950/90 rounded-[14px] backdrop-blur-2xl card-hover-cyan h-full relative z-10">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-cyan-500 text-lg">Notes</CardTitle>
+                <CardDescription className="text-cyan-500 text-2xl font-bold">{initialNotesCount}</CardDescription>
+              </CardHeader>
+            </Card>
+          </div>
         </Link>
 
-        <Link href="/urls" className="block">
-          <Card className="border text-center border-orange-500 bg-white/5 rounded-lg backdrop-blur-2xl transition-all duration-1000 card-hover-orange hover:scale-105 h-full">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-orange-500 text-lg">URLs</CardTitle>
-              <CardDescription className="text-orange-500 text-2xl font-bold">{initialUrlsCount}</CardDescription>
-            </CardHeader>
-          </Card>
+        <Link href="/urls" className="block h-full">
+          <div className="relative overflow-hidden rounded-2xl p-[2px] transition-all duration-500 hover:scale-105 h-full">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300%] aspect-square rounded-full bg-[conic-gradient(from_0deg,#4285f4,#34a853,#fbbc05,#ea4335,#4285f4)] animate-[border-spin_6s_linear_infinite] z-0 pointer-events-none" />
+            <Card className="border text-center border-orange-500/30 bg-slate-950/90 rounded-[14px] backdrop-blur-2xl card-hover-orange h-full relative z-10">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-orange-500 text-lg">URLs</CardTitle>
+                <CardDescription className="text-orange-500 text-2xl font-bold">{initialUrlsCount}</CardDescription>
+              </CardHeader>
+            </Card>
+          </div>
         </Link>
 
-        <Link href="/todos" className="block">
-          <Card className="border text-center border-cyan-500 bg-white/5 rounded-lg backdrop-blur-2xl transition-all duration-1000 card-hover-cyan hover:scale-105 h-full">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-cyan-500 text-lg">Todos</CardTitle>
-              <CardDescription className="text-cyan-500 text-2xl font-bold">{initialTodosCount}</CardDescription>
-            </CardHeader>
-          </Card>
+        <Link href="/todos" className="block h-full">
+          <div className="relative overflow-hidden rounded-2xl p-[2px] transition-all duration-500 hover:scale-105 h-full">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300%] aspect-square rounded-full bg-[conic-gradient(from_0deg,#4285f4,#34a853,#fbbc05,#ea4335,#4285f4)] animate-[border-spin_6s_linear_infinite] z-0 pointer-events-none" />
+            <Card className="border text-center border-cyan-500/30 bg-slate-950/90 rounded-[14px] backdrop-blur-2xl card-hover-cyan h-full relative z-10">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-cyan-500 text-lg">Todos</CardTitle>
+                <CardDescription className="text-cyan-500 text-2xl font-bold">{initialTodosCount}</CardDescription>
+              </CardHeader>
+            </Card>
+          </div>
         </Link>
 
-        <Link href="/shared" className="block">
-          <Card className="border text-center border-orange-500 bg-white/5 rounded-lg backdrop-blur-2xl transition-all duration-1000 card-hover-orange hover:scale-105 h-full">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-orange-500 text-lg">Shared with me</CardTitle>
-              <CardDescription className="text-orange-500 text-2xl font-bold">{initialSharedCount}</CardDescription>
-            </CardHeader>
-          </Card>
+        <Link href="/shared" className="block h-full">
+          <div className="relative overflow-hidden rounded-2xl p-[2px] transition-all duration-500 hover:scale-105 h-full">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300%] aspect-square rounded-full bg-[conic-gradient(from_0deg,#4285f4,#34a853,#fbbc05,#ea4335,#4285f4)] animate-[border-spin_6s_linear_infinite] z-0 pointer-events-none" />
+            <Card className="border text-center border-orange-500/30 bg-slate-950/90 rounded-[14px] backdrop-blur-2xl card-hover-orange h-full relative z-10">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-orange-500 text-lg">Shared with me</CardTitle>
+                <CardDescription className="text-orange-500 text-2xl font-bold">{initialSharedCount}</CardDescription>
+              </CardHeader>
+            </Card>
+          </div>
         </Link>
       </div>
 
-      <Card className="border text-center  bg-white/5 rounded-lg backdrop-blur-2xl transition-all hover:shadow-lg hover:shadow-white/10">
+      <Card className="rainbow-animated-border border text-center bg-slate-950/90 rounded-2xl backdrop-blur-2xl transition-all hover:shadow-lg hover:shadow-white/10">
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">

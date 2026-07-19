@@ -409,3 +409,394 @@
     transform: rotate(360deg);
   }
 }
+
+/* ==========================================
+   Neomorphic Glass UI Theme (#FAEBD7)
+   ========================================== */
+
+.theme-neomorphic-glass {
+  --background: #FAEBD7;
+  --foreground: #2d261e;
+  --card: rgba(250, 235, 215, 0.45);
+  --card-foreground: #2d261e;
+  --popover: #FAEBD7;
+  --popover-foreground: #2d261e;
+  --primary: #c2b09a;
+  --primary-foreground: #2d261e;
+  --secondary: #FAEBD7;
+  --secondary-foreground: #2d261e;
+  --muted: #f3e6d5;
+  --muted-foreground: #706354;
+  --accent: #e8d7c2;
+  --accent-foreground: #2d261e;
+  --border: rgba(180, 165, 145, 0.35);
+  --input: rgba(163, 150, 134, 0.2);
+  --ring: #c2b09a;
+  --sidebar: rgba(250, 235, 215, 0.45);
+  --sidebar-foreground: #2d261e;
+  --sidebar-primary: #c2b09a;
+  --sidebar-primary-foreground: #2d261e;
+  --sidebar-accent: #e8d7c2;
+  --sidebar-accent-foreground: #2d261e;
+  --sidebar-border: rgba(180, 165, 145, 0.3);
+  --sidebar-ring: #c2b09a;
+
+  /* Force color overrides for elements utilizing hardcoded tailwind text classes */
+  & .text-white,
+  & .text-slate-50,
+  & .text-slate-100 {
+    color: #1c1917 !important;
+  }
+  & .text-slate-200,
+  & .text-slate-300 {
+    color: #44403c !important;
+  }
+  & .text-slate-400 {
+    color: #6b6661 !important;
+  }
+  & .text-slate-500 {
+    color: #8c857e !important;
+  }
+  
+  /* Saturated action colors for labels and headers to keep them legible and vibrant */
+  & .text-cyan-100,
+  & .text-cyan-300,
+  & .text-cyan-400 {
+    color: #0891b2 !important;
+  }
+  & .text-purple-100,
+  & .text-purple-300,
+  & .text-purple-400 {
+    color: #7c3aed !important;
+  }
+  & .text-orange-300,
+  & .text-orange-400,
+  & .text-orange-500 {
+    color: #ea580c !important;
+  }
+  & .text-green-300,
+  & .text-green-400,
+  & .text-green-500 {
+    color: #16a34a !important;
+  }
+  & .text-pink-300,
+  & .text-pink-400,
+  & .text-pink-500 {
+    color: #db2777 !important;
+  }
+  & .text-indigo-300,
+  & .text-indigo-400,
+  & .text-indigo-500 {
+    color: #4f46e5 !important;
+  }
+  
+  /* Force color overrides for backgrounds */
+  & .bg-slate-950\/20,
+  & .bg-slate-950\/30,
+  & .bg-slate-950\/40,
+  & .bg-slate-950\/50,
+  & .bg-slate-950\/60,
+  & .bg-slate-950\/70,
+  & .bg-slate-950\/80 {
+    background-color: rgba(250, 235, 215, 0.45) !important;
+  }
+  & .bg-white\/5,
+  & .bg-white\/10 {
+    background-color: rgba(255, 255, 255, 0.45) !important;
+  }
+  & .bg-slate-900\/50,
+  & .bg-slate-900\/60,
+  & .bg-slate-900\/70,
+  & .bg-slate-900\/80 {
+    background-color: rgba(250, 235, 215, 0.3) !important;
+  }
+  & .bg-slate-950 {
+    background-color: rgba(250, 235, 215, 0.6) !important;
+  }
+  & .bg-slate-900 {
+    background-color: rgba(250, 235, 215, 0.75) !important;
+  }
+  
+  /* Sidebar specifically */
+  & aside,
+  & .bg-slate-950\/20 {
+    background-color: rgba(250, 235, 215, 0.5) !important;
+    border-color: rgba(180, 165, 145, 0.35) !important;
+  }
+  
+  /* Border overrides */
+  & .border-white\/10,
+  & .border-white\/20,
+  & .border-white\/5 {
+    border-color: rgba(180, 165, 145, 0.3) !important;
+  }
+  & .border-slate-700,
+  & .border-slate-800 {
+    border-color: rgba(180, 165, 145, 0.4) !important;
+  }
+  
+  /* Neomorphic Glass Shadows on cards */
+  & [data-slot="card"],
+  & .rounded-xl.border,
+  & .rounded-3xl.border,
+  & .rounded-2xl.border,
+  & .rounded-lg.border {
+    background-color: rgba(250, 235, 215, 0.45) !important;
+    box-shadow: 8px 8px 16px rgba(180, 165, 145, 0.25), -8px -8px 16px rgba(255, 255, 255, 0.85) !important;
+    border-color: rgba(180, 165, 145, 0.25) !important;
+    backdrop-filter: blur(16px) !important;
+  }
+  
+  /* Standard Buttons */
+  & button,
+  & [data-slot="button"] {
+    background-color: #FAEBD7 !important;
+    color: #2d261e !important;
+    border: 1px solid rgba(180, 165, 145, 0.35) !important;
+    box-shadow: 4px 4px 8px rgba(180, 165, 145, 0.45), -4px -4px 8px rgba(255, 255, 255, 0.9) !important;
+    border-radius: 0.75rem !important;
+    transition: all 0.2s ease-in-out !important;
+  }
+  
+  & button:hover,
+  & [data-slot="button"]:hover {
+    background-color: #f3e4cf !important;
+    box-shadow: 5px 5px 10px rgba(180, 165, 145, 0.55), -5px -5px 10px rgba(255, 255, 255, 0.95) !important;
+    transform: translateY(-1px);
+  }
+  
+  & button:active,
+  & [data-slot="button"]:active {
+    background-color: #ebdcc8 !important;
+    box-shadow: inset 2px 2px 4px rgba(180, 165, 145, 0.5), inset -2px -2px 4px rgba(255, 255, 255, 0.9) !important;
+    transform: translateY(1px);
+  }
+  
+  /* Action variants for buttons (btn-custom variants) */
+  & .btn-custom {
+    background-color: #FAEBD7 !important;
+    color: #2d261e !important;
+    border: 1px solid rgba(180, 165, 145, 0.35) !important;
+    box-shadow: 4px 4px 8px rgba(180, 165, 145, 0.45), -4px -4px 8px rgba(255, 255, 255, 0.9) !important;
+    border-radius: 0.75rem !important;
+  }
+  & .btn-custom:hover {
+    background-color: #f3e4cf !important;
+    box-shadow: 5px 5px 10px rgba(180, 165, 145, 0.55), -5px -5px 10px rgba(255, 255, 255, 0.95) !important;
+  }
+  & .btn-custom:active {
+    background-color: #ebdcc8 !important;
+    box-shadow: inset 2px 2px 4px rgba(180, 165, 145, 0.5), inset -2px -2px 4px rgba(255, 255, 255, 0.9) !important;
+  }
+  
+  /* Accents for action buttons */
+  & .btn-custom-blue {
+    color: #1e3a8a !important;
+    border-color: rgba(30, 58, 138, 0.35) !important;
+  }
+  & .btn-custom-red {
+    color: #991b1b !important;
+    border-color: rgba(153, 27, 27, 0.35) !important;
+  }
+  & .btn-custom-green {
+    color: #166534 !important;
+    border-color: rgba(22, 101, 52, 0.35) !important;
+  }
+  & .btn-custom-amber {
+    color: #92400e !important;
+    border-color: rgba(146, 64, 14, 0.35) !important;
+  }
+  & .btn-custom-cyan {
+    color: #155e75 !important;
+    border-color: rgba(21, 94, 117, 0.35) !important;
+  }
+  & .btn-custom-purple {
+    color: #6b21a8 !important;
+    border-color: rgba(107, 33, 168, 0.35) !important;
+  }
+  
+  /* Form Inputs and Interactive Controls */
+  & input,
+  & textarea,
+  & select,
+  & [data-slot="select-trigger"],
+  & .SelectTrigger {
+    background-color: rgba(250, 235, 215, 0.45) !important;
+    color: #2d261e !important;
+    border: 1px solid rgba(255, 255, 255, 0.6) !important;
+    box-shadow: inset 3px 3px 6px rgba(180, 165, 145, 0.3), inset -3px -3px 6px rgba(255, 255, 255, 0.8) !important;
+    border-radius: 0.75rem !important;
+    transition: all 0.2s ease-in-out !important;
+  }
+  & input:focus,
+  & textarea:focus,
+  & select:focus,
+  & [data-slot="select-trigger"]:focus,
+  & .SelectTrigger:focus {
+    border-color: rgba(194, 176, 154, 0.6) !important;
+    background-color: rgba(250, 235, 215, 0.6) !important;
+    box-shadow: 0 0 0 2px rgba(194, 176, 154, 0.15), inset 3px 3px 6px rgba(180, 165, 145, 0.3), inset -3px -3px 6px rgba(255, 255, 255, 0.8) !important;
+    outline: none !important;
+  }
+  
+  /* Form containers and sections */
+  & form,
+  & [data-slot="form"] {
+    background-color: rgba(250, 235, 215, 0.55) !important;
+    border: 1px solid rgba(180, 165, 145, 0.3) !important;
+    border-radius: 1.5rem !important;
+    box-shadow: 6px 6px 12px rgba(180, 165, 145, 0.2), -6px -6px 12px rgba(255, 255, 255, 0.8) !important;
+    padding: 1.5rem !important;
+    backdrop-filter: blur(8px) !important;
+  }
+  
+  /* Softer spinning borders for active nav items and user avatars */
+  & .animate-\[border-spin_6s_linear_infinite\] {
+    background: conic-gradient(from 0deg, #c2b09a, #faebd7, #ebdcc8, #faebd7, #c2b09a) !important;
+  }
+
+  /* Sidebar navigation items and user details card */
+  & nav button,
+  & aside button {
+    background-color: transparent !important;
+    color: #44403c !important;
+    border: 1px solid transparent !important;
+    box-shadow: none !important;
+    border-radius: 1.5rem !important;
+    transition: all 0.2s ease-in-out !important;
+  }
+  
+  & nav button:hover,
+  & aside button:hover {
+    background-color: rgba(250, 235, 215, 0.7) !important;
+    border-color: rgba(255, 255, 255, 0.4) !important;
+    box-shadow: 4px 4px 8px rgba(180, 165, 145, 0.2), -4px -4px 8px rgba(255, 255, 255, 0.7) !important;
+    color: #1c1917 !important;
+  }
+  
+  /* Active sidebar item container overlay button */
+  & nav .relative button,
+  & aside .relative button {
+    background-color: #FAEBD7 !important;
+    color: #1c1917 !important;
+    border: 1px solid rgba(255, 255, 255, 0.6) !important;
+    box-shadow: 4px 4px 8px rgba(180, 165, 145, 0.35), -4px -4px 8px rgba(255, 255, 255, 0.95) !important;
+    border-radius: 1.5rem !important;
+    font-weight: 700 !important;
+  }
+  
+  /* Dropdown User card inside sidebar trigger */
+  & [data-slot="dropdown-menu-trigger"] {
+    background-color: rgba(250, 235, 215, 0.4) !important;
+    border: 1px solid rgba(255, 255, 255, 0.5) !important;
+    border-radius: 1rem !important;
+    box-shadow: 3px 3px 6px rgba(180, 165, 145, 0.2), -3px -3px 6px rgba(255, 255, 255, 0.7) !important;
+    transition: all 0.2s ease-in-out !important;
+  }
+  & [data-slot="dropdown-menu-trigger"]:hover {
+    background-color: rgba(250, 235, 215, 0.65) !important;
+    box-shadow: 4px 4px 8px rgba(180, 165, 145, 0.25), -4px -4px 8px rgba(255, 255, 255, 0.8) !important;
+  }
+}
+
+/* Radix Portals / Dialogs / Popovers / Dropdowns / Tooltips */
+body:has(.theme-neomorphic-glass) [data-radix-menu-content],
+body:has(.theme-neomorphic-glass) [data-radix-popper-content-wrapper] > div,
+body:has(.theme-neomorphic-glass) [role="dialog"],
+body:has(.theme-neomorphic-glass) [role="menu"],
+body:has(.theme-neomorphic-glass) [role="listbox"],
+body:has(.theme-neomorphic-glass) [role="tooltip"],
+body:has(.theme-neomorphic-glass) [data-slot="popover-content"],
+body:has(.theme-neomorphic-glass) [data-slot="select-content"],
+body:has(.theme-neomorphic-glass) [data-slot="dropdown-menu-content"],
+body:has(.theme-neomorphic-glass) [data-slot="tooltip-content"],
+body:has(.theme-neomorphic-glass) .SelectContent,
+body:has(.theme-neomorphic-glass) .PopoverContent,
+body:has(.theme-neomorphic-glass) .DialogContent {
+  background-color: rgba(250, 235, 215, 0.98) !important;
+  color: #2d261e !important;
+  border: 1px solid rgba(180, 165, 145, 0.4) !important;
+  box-shadow: 8px 8px 16px rgba(180, 165, 145, 0.25), -8px -8px 16px rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(12px) !important;
+  border-radius: 1rem !important;
+}
+
+/* Dropdown items hover states */
+body:has(.theme-neomorphic-glass) [data-radix-menu-content] [role="menuitem"]:hover,
+body:has(.theme-neomorphic-glass) [role="menu"] [role="menuitem"]:hover,
+body:has(.theme-neomorphic-glass) [role="listbox"] [role="option"]:hover,
+body:has(.theme-neomorphic-glass) [role="listbox"] [data-highlighted],
+body:has(.theme-neomorphic-glass) [data-slot="select-content"] [role="option"]:hover,
+body:has(.theme-neomorphic-glass) [data-slot="select-content"] [data-highlighted] {
+  background-color: rgba(194, 176, 154, 0.3) !important;
+  color: #1c1917 !important;
+  border-radius: 0.5rem !important;
+}
+
+/* Override inner hardcoded bg-slate-950 on dialog layouts, selects, menus, and dropdowns under neomorphic theme */
+body:has(.theme-neomorphic-glass) [role="dialog"] .bg-slate-950,
+body:has(.theme-neomorphic-glass) [data-slot="dialog-content"] .bg-slate-950,
+body:has(.theme-neomorphic-glass) [data-slot="select-content"] .bg-slate-950,
+body:has(.theme-neomorphic-glass) [data-radix-menu-content] .bg-slate-950,
+body:has(.theme-neomorphic-glass) [role="menu"] .bg-slate-950,
+body:has(.theme-neomorphic-glass) [role="listbox"] .bg-slate-950,
+body:has(.theme-neomorphic-glass) .DialogContent .bg-slate-950,
+body:has(.theme-neomorphic-glass) .SelectContent .bg-slate-950 {
+  background-color: rgba(250, 235, 215, 0.98) !important;
+}
+
+/* Color mappings inside portal contexts to support high legibility */
+body:has(.theme-neomorphic-glass) [data-radix-menu-content],
+body:has(.theme-neomorphic-glass) [data-radix-popper-content-wrapper],
+body:has(.theme-neomorphic-glass) [role="dialog"],
+body:has(.theme-neomorphic-glass) [role="menu"],
+body:has(.theme-neomorphic-glass) [role="listbox"],
+body:has(.theme-neomorphic-glass) .SelectContent,
+body:has(.theme-neomorphic-glass) .PopoverContent,
+body:has(.theme-neomorphic-glass) .DialogContent {
+  & .text-white, & .text-slate-50, & .text-slate-100 { color: #1c1917 !important; }
+  & .text-slate-200, & .text-slate-300 { color: #44403c !important; }
+  & .text-slate-400 { color: #6b6661 !important; }
+  & .text-slate-500 { color: #8c857e !important; }
+  & .text-cyan-500, & .text-cyan-400 { color: #0891b2 !important; }
+  & .text-purple-500, & .text-purple-400 { color: #7c3aed !important; }
+  & .text-orange-500, & .text-orange-400 { color: #ea580c !important; }
+  & .text-green-500, & .text-green-400 { color: #16a34a !important; }
+  & .text-pink-500, & .text-pink-400 { color: #db2777 !important; }
+  & .text-indigo-500, & .text-indigo-400 { color: #4f46e5 !important; }
+  
+  /* Select trigger indicator check icons */
+  & [data-slot="select-item"] svg,
+  & [role="menuitem"] svg,
+  & [role="option"] svg {
+    stroke: currentColor !important;
+  }
+}
+
+/* Neomorphic Input overrides inside Radix Dialog modals */
+body:has(.theme-neomorphic-glass) [role="dialog"],
+body:has(.theme-neomorphic-glass) [data-slot="dialog-content"],
+body:has(.theme-neomorphic-glass) .DialogContent {
+  & input,
+  & textarea,
+  & select,
+  & [data-slot="select-trigger"],
+  & .SelectTrigger {
+    background-color: rgba(250, 235, 215, 0.45) !important;
+    color: #2d261e !important;
+    border: 1px solid rgba(255, 255, 255, 0.6) !important;
+    box-shadow: inset 3px 3px 6px rgba(180, 165, 145, 0.3), inset -3px -3px 6px rgba(255, 255, 255, 0.8) !important;
+    border-radius: 0.75rem !important;
+    transition: all 0.2s ease-in-out !important;
+  }
+  & input:focus,
+  & textarea:focus,
+  & select:focus,
+  & [data-slot="select-trigger"]:focus,
+  & .SelectTrigger:focus {
+    border-color: rgba(194, 176, 154, 0.6) !important;
+    background-color: rgba(250, 235, 215, 0.6) !important;
+    box-shadow: 0 0 0 2px rgba(194, 176, 154, 0.15), inset 3px 3px 6px rgba(180, 165, 145, 0.3), inset -3px -3px 6px rgba(255, 255, 255, 0.8) !important;
+    outline: none !important;
+  }
+}

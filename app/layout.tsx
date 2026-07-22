@@ -42,8 +42,17 @@ export default async function RootLayout({
     }
   } : null
 
+  const isSatellite = process.env.NEXT_PUBLIC_CLERK_IS_SATELLITE === "true";
+  const domain = process.env.NEXT_PUBLIC_CLERK_DOMAIN;
+  const signInUrl = process.env.NEXT_PUBLIC_CLERK_SIGN_IN_URL;
+
   return (
-    <ClerkProvider afterSignOutUrl={`${process.env.NEXT_PUBLIC_LAUNCHER_URL || "http://localhost:3000"}/auth/login`}>
+    <ClerkProvider
+      isSatellite={isSatellite}
+      domain={domain}
+      signInUrl={signInUrl}
+      afterSignOutUrl={`${process.env.NEXT_PUBLIC_LAUNCHER_URL || "https://dev-tech-hub.vercel.app"}/auth/login`}
+    >
       <html lang="en">
         <body className="font-sans antialiased min-h-screen">
           <GlassBackground>

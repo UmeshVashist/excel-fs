@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation"
 import { cn, copyToClipboard } from "@/lib/utils"
 import { ShareModal } from "./share-modal"
 import { HistoryModal } from "./history-modal"
-import { getSharedWith } from "@/lib/sharing-actions"
+import { getSharedWith, logHistory } from "@/lib/sharing-actions"
 
 import { format } from "date-fns"
 
@@ -59,6 +59,7 @@ export function TodoItem({
 
   const handleFavoriteToggle = async () => {
     await supabase.from("todos").update({ is_favorite: !isFavorite }).eq("id", todo.id)
+    await logHistory({ resourceId: todo.id, resourceType: "todos", action: !isFavorite ? "favorited" : "unfavorited", userId: currentUserId })
     setIsFavorite(!isFavorite)
     onUpdate()
   }
@@ -78,6 +79,7 @@ export function TodoItem({
           console.error("Error moving todo to recycle bin:", error)
           alert("Failed to move item to recycle bin.")
         } else {
+          await logHistory({ resourceId: todo.id, resourceType: "todos", action: "deleted", userId: currentUserId })
           onUpdate()
         }
       }
@@ -99,6 +101,7 @@ export function TodoItem({
   const handleStatusChange = async (newStatus: "pending" | "in-process" | "complete") => {
     const { error } = await supabase.from("todos").update({ status: newStatus }).eq("id", todo.id)
     if (!error) {
+      await logHistory({ resourceId: todo.id, resourceType: "todos", action: "updated", fieldName: "Status", oldValue: todo.status, newValue: newStatus, userId: currentUserId })
       onUpdate()
     }
   }
@@ -144,7 +147,10 @@ export function TodoItem({
       <div className="flex items-center justify-between gap-4 mb-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-2">
-            <h3 className="text-xl font-semibold text-white break-words">{todo.title}</h3>
+            <h3 className="text-xl font-semibold text-white break-words flex items-center gap-2">
+              {todo.title}
+              {isFavorite && <Star className="h-4 w-4 fill-amber-400 text-amber-400 shrink-0 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]" title="Favorite" />}
+            </h3>
             {!isOwner && (
               <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center gap-1">
                 <Users className="h-2.5 w-2.5" />
@@ -200,9 +206,13 @@ export function TodoItem({
               variant="ghost"
               size="icon"
               onClick={handleFavoriteToggle}
-              className="btn-custom btn-custom-amber h-9 w-9 px-0 rounded-lg"
+              className={cn(
+                "btn-custom btn-custom-amber h-9 w-9 px-0 rounded-lg transition-all",
+                isFavorite && "bg-amber-500/20 border-amber-500/50 shadow-[0_0_12px_rgba(245,158,11,0.3)]"
+              )}
+              title={isFavorite ? "Remove from favorites" : "Add to favorites"}
             >
-              <Star className={cn("h-4 w-4 text-white", isFavorite && "fill-white")} />
+              <Star className={cn("h-4 w-4 transition-all", isFavorite ? "fill-amber-400 text-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.6)]" : "text-slate-400 hover:text-amber-300")} />
             </Button>
 
             <Button

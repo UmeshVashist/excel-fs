@@ -1,22 +1,31 @@
 import { redirect } from "next/navigation"
+import { auth, currentUser } from "@clerk/nextjs/server"
 import { createClient } from "@/lib/supabase/server"
-import { checkOAuthUser } from "@/lib/supabase/oauth-middleware"
+import { getUserDbInfo } from "@/lib/supabase/user-helper"
 import { DashboardClient } from "./dashboard-client"
 
 export default async function DashboardPage() {
-  // Verify user is authenticated with OAuth (Gmail or GitHub)
-  const { user } = await checkOAuthUser()
+  const { userId } = await auth()
+  const clerkUser = await currentUser()
+
+  if (!userId) {
+    redirect("/auth/login")
+  }
+
+  const email = clerkUser?.primaryEmailAddress?.emailAddress || null
+  const dbInfo = await getUserDbInfo(userId, email)
+  const filterOr = `user_id.eq.${dbInfo.uuid},clerk_user_id.eq.${dbInfo.clerkUserId}`
 
   const supabase = await createClient()
 
   // Fetching initial counts for all categories
   const [formulasRes, shortcutsRes, notesRes, urlsRes, todosRes, sharedItemsRes] = await Promise.all([
-    supabase.from("formulas").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("is_deleted", false),
-    supabase.from("shortcuts").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("is_deleted", false),
-    supabase.from("notes").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("is_deleted", false),
-    supabase.from("urls").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("is_deleted", false),
-    supabase.from("todos").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("is_deleted", false),
-    supabase.from("shared_items").select("resource_id, resource_type").eq("shared_with_id", user.id),
+    supabase.from("formulas").select("*", { count: "exact", head: true }).or(filterOr).eq("is_deleted", false),
+    supabase.from("shortcuts").select("*", { count: "exact", head: true }).or(filterOr).eq("is_deleted", false),
+    supabase.from("notes").select("*", { count: "exact", head: true }).or(filterOr).eq("is_deleted", false),
+    supabase.from("urls").select("*", { count: "exact", head: true }).or(filterOr).eq("is_deleted", false),
+    supabase.from("todos").select("*", { count: "exact", head: true }).or(filterOr).eq("is_deleted", false),
+    supabase.from("shared_items").select("resource_id, resource_type").or(`shared_with_id.eq.${dbInfo.uuid},shared_with_id.eq.${dbInfo.clerkUserId}`),
   ])
 
   // Calculate actual visible shared count by checking if resources are not deleted
@@ -29,15 +38,26 @@ export default async function DashboardPage() {
       return acc
     }, {})
 
-    const visibleCounts = await Promise.all(Object.entries(typeGroups).map(async ([type, ids]: [any, any]) => {
-      const table = type === "shortcuts" ? "shortcuts" : type === "formulas" ? "formulas" : type === "notes" ? "notes" : type === "urls" ? "urls" : "todos"
-      const { count } = await supabase
-        .from(table)
-        .select("*", { count: "exact", head: true })
-        .in("id", ids)
-        .eq("is_deleted", false)
-      return count || 0
-    }))
+    const visibleCounts = await Promise.all(
+      Object.entries(typeGroups).map(async ([type, ids]: [any, any]) => {
+        const table =
+          type === "shortcuts"
+            ? "shortcuts"
+            : type === "formulas"
+            ? "formulas"
+            : type === "notes"
+            ? "notes"
+            : type === "urls"
+            ? "urls"
+            : "todos"
+        const { count } = await supabase
+          .from(table)
+          .select("*", { count: "exact", head: true })
+          .in("id", ids)
+          .eq("is_deleted", false)
+        return count || 0
+      })
+    )
 
     initialSharedCount = visibleCounts.reduce((sum, count) => sum + count, 0)
   }
@@ -51,7 +71,7 @@ export default async function DashboardPage() {
         initialUrlsCount={urlsRes.count || 0}
         initialTodosCount={todosRes.count || 0}
         initialSharedCount={initialSharedCount}
-        userId={user.id}
+        userId={dbInfo.uuid}
       />
     </div>
   )

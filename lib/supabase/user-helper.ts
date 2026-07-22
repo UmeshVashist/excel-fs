@@ -1,0 +1,73 @@
+import { createClient } from "./server"
+
+export interface UserDbInfo {
+  clerkUserId: string
+  uuid: string
+  userIds: string[]
+}
+
+function isValidUUID(val?: string | null): boolean {
+  if (!val) return false
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)
+}
+
+export async function getUserDbInfo(clerkUserId: string, email?: string | null): Promise<UserDbInfo> {
+  const supabase = await createClient()
+
+  // 1. Search profiles by clerk_user_id
+  let { data: profilesByClerk } = await supabase
+    .from("profiles")
+    .select("id, clerk_user_id, email")
+    .eq("clerk_user_id", clerkUserId)
+
+  let matchingProfile = profilesByClerk?.[0]
+
+  // 2. If not found by clerk_user_id, search by email (existing accounts)
+  if (!matchingProfile && email) {
+    const { data: profilesByEmail } = await supabase
+      .from("profiles")
+      .select("id, clerk_user_id, email")
+      .eq("email", email)
+
+    matchingProfile = profilesByEmail?.[0]
+
+    // Link clerk_user_id to existing profile
+    if (matchingProfile) {
+      await supabase
+        .from("profiles")
+        .update({ clerk_user_id: clerkUserId, updated_at: new Date().toISOString() })
+        .eq("id", matchingProfile.id)
+    }
+  }
+
+  // 3. If profile still not found, create new profile with valid UUID and clerk_user_id
+  if (!matchingProfile) {
+    const newUuid = crypto.randomUUID()
+    const { data: newProfile, error } = await supabase
+      .from("profiles")
+      .insert({
+        id: newUuid,
+        clerk_user_id: clerkUserId,
+        email: email || null,
+        username: email ? email.split("@")[0] : "User",
+        updated_at: new Date().toISOString(),
+      })
+      .select("id, clerk_user_id, email")
+      .single()
+
+    if (newProfile) {
+      matchingProfile = newProfile
+    } else if (error) {
+      console.error("[v0] Error creating user profile:", error)
+    }
+  }
+
+  const profileUuid = matchingProfile?.id || (isValidUUID(clerkUserId) ? clerkUserId : crypto.randomUUID())
+  const userIds = Array.from(new Set([clerkUserId, profileUuid].filter(Boolean)))
+
+  return {
+    clerkUserId,
+    uuid: profileUuid,
+    userIds,
+  }
+}

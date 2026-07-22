@@ -146,19 +146,19 @@ export function TodosList({ initialTodos, userId }: { initialTodos: Todo[]; user
           </div>
           <div className="flex gap-4">
             <Select value={favoriteFilter} onValueChange={setFavoriteFilter}>
-              <SelectTrigger className="flex-1 md:w-48 bg-slate-800/50 border-slate-700 text-white">
+              <SelectTrigger className="flex-1 md:w-48 bg-slate-900/60 backdrop-blur-md border-white/15 text-white hover:border-cyan-500/50 transition-all">
                 <SelectValue placeholder="Filter by favorite" />
               </SelectTrigger>
-              <SelectContent className="bg-slate-800 border-slate-700 text-white">
+              <SelectContent className="bg-slate-900/85 backdrop-blur-xl border-white/15 shadow-2xl text-white">
                 <SelectItem value="all">All Todos</SelectItem>
                 <SelectItem value="favorite">Favorites</SelectItem>
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="flex-1 md:w-48 bg-slate-800/50 border-slate-700 text-white">
+              <SelectTrigger className="flex-1 md:w-48 bg-slate-900/60 backdrop-blur-md border-white/15 text-white hover:border-cyan-500/50 transition-all">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
-              <SelectContent className="bg-slate-800 border-slate-700 text-white">
+              <SelectContent className="bg-slate-900/85 backdrop-blur-xl border-white/15 shadow-2xl text-white">
                 <SelectItem value="all">All</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="in-process">In Progress</SelectItem>
@@ -166,10 +166,10 @@ export function TodosList({ initialTodos, userId }: { initialTodos: Todo[]; user
               </SelectContent>
             </Select>
             <Select value={sharedFilter} onValueChange={setSharedFilter}>
-              <SelectTrigger className="flex-1 md:w-48 bg-slate-800/50 border-slate-700 text-white">
+              <SelectTrigger className="flex-1 md:w-48 bg-slate-900/60 backdrop-blur-md border-white/15 text-white hover:border-cyan-500/50 transition-all">
                 <SelectValue placeholder="Filter by shared" />
               </SelectTrigger>
-              <SelectContent className="bg-slate-800 border-slate-700 text-white">
+              <SelectContent className="bg-slate-900/85 backdrop-blur-xl border-white/15 shadow-2xl text-white">
                 <SelectItem value="all">All</SelectItem>
                 <SelectItem value="shared">Shared</SelectItem>
               </SelectContent>

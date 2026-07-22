@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { LayoutDashboard, FileText, Keyboard, Settings, LogOut, StickyNote, LinkIcon, CheckSquare, User, UserCircle, Lock, AlertTriangle, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useClerk, useUser } from "@clerk/nextjs"
 import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
 import { useEffect, useState } from "react"
@@ -61,52 +62,53 @@ const menuItems = [
     icon: UserCircle,
     color: "text-indigo-400",
   },
-  // {
-  //   name: "Settings",
-  //   href: "/settings",
-  //   icon: Settings,
-  //   color: "text-amber-400",
-  // },
 ]
 
 export function Sidebar({ user }: { user?: any }) {
   const pathname = usePathname()
   const router = useRouter()
+  const { signOut } = useClerk()
+  const { user: clerkUser } = useUser()
   const supabase = createClient()
   const [profile, setProfile] = useState<{ username: string | null; email: string | null; id: string | null } | null>(null)
   const [modalType, setModalType] = useState<"profile" | "password" | "danger" | "recycle-bin" | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
 
+  const currentUserData = user || (clerkUser ? {
+    id: clerkUser.id,
+    email: clerkUser.primaryEmailAddress?.emailAddress || null,
+    user_metadata: { username: clerkUser.username || clerkUser.firstName || clerkUser.primaryEmailAddress?.emailAddress?.split('@')[0] || "User" }
+  } : null)
+
   const fetchProfile = async () => {
-    if (user) {
+    if (currentUserData) {
       const { data } = await supabase
         .from("profiles")
         .select("username, email, id")
-        .eq("id", user.id)
+        .eq("id", currentUserData.id)
         .single()
       
       if (data) {
         setProfile(data)
       } else {
         setProfile({
-          username: user.user_metadata?.username || user.email?.split('@')[0] || "User",
-          email: user.email || null,
-          id: user.id
+          username: currentUserData.user_metadata?.username || currentUserData.email?.split('@')[0] || "User",
+          email: currentUserData.email || null,
+          id: currentUserData.id
         })
       }
     }
   }
 
   useEffect(() => {
-    if (user) {
+    if (currentUserData) {
       fetchProfile()
     }
-  }, [user, supabase])
+  }, [currentUserData?.id, supabase])
 
   useEffect(() => {
-    if (!user) return
+    if (!currentUserData) return
 
-    // Subscribe to realtime changes for the profile
     const channel = supabase
       .channel('profile_changes')
       .on(
@@ -125,7 +127,7 @@ export function Sidebar({ user }: { user?: any }) {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [supabase])
+  }, [supabase, currentUserData?.id])
 
   const openModal = (type: "profile" | "password" | "danger" | "recycle-bin") => {
     setModalType(type)
@@ -133,19 +135,18 @@ export function Sidebar({ user }: { user?: any }) {
   }
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push("/auth/login")
+    await signOut({ redirectUrl: "http://localhost:3000/auth/login" })
   }
 
   return (
     <div className="h-full w-full bg-slate-950/20 backdrop-blur-sm border-r border-white/10 text-white shadow-sm flex flex-col overflow-y-auto">
       <div className="p-6 border-b border-white/10">
-        <Link href="/dashboard" className="block hover:opacity-80 transition-opacity">
+        <a href="http://localhost:3000/dashboard" className="block hover:opacity-80 transition-opacity">
           <h1 className="text-2xl font-bold mb-4">
               <span className="text-cyan-500">Dev</span>
               <span className="text-orange-500">Board</span>
           </h1>
-        </Link>
+        </a>
         
         {profile && (
           <DropdownMenu>
@@ -167,36 +168,36 @@ export function Sidebar({ user }: { user?: any }) {
                 </div>
               </div>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56 bg-slate-900 border-slate-800 text-slate-200" align="start">
-              <DropdownMenuLabel className="text-slate-400 font-normal">Account Settings</DropdownMenuLabel>
-              <DropdownMenuSeparator className="bg-slate-800" />
+            <DropdownMenuContent className="w-56 bg-slate-900/85 backdrop-blur-xl border-white/15 text-slate-100 shadow-2xl" align="start">
+              <DropdownMenuLabel className="text-slate-400 font-semibold text-xs uppercase tracking-wider">Account Settings</DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-white/10" />
               <DropdownMenuItem 
                 onClick={() => openModal("profile")}
-                className="focus:bg-white/10 focus:text-white cursor-pointer gap-2"
+                className="focus:bg-white/15 focus:text-white cursor-pointer gap-2"
               >
                 <UserCircle className="h-4 w-4 text-blue-400" />
                 Profile Information
               </DropdownMenuItem>
               <DropdownMenuItem 
                 onClick={() => openModal("password")}
-                className="focus:bg-white/10 focus:text-white cursor-pointer gap-2"
+                className="focus:bg-white/15 focus:text-white cursor-pointer gap-2"
               >
                 <Lock className="h-4 w-4 text-purple-400" />
                 Change Password
               </DropdownMenuItem>
               <DropdownMenuItem 
                 onClick={() => openModal("recycle-bin")}
-                className="focus:bg-white/10 focus:text-white cursor-pointer gap-2"
+                className="focus:bg-white/15 focus:text-white cursor-pointer gap-2"
               >
                 <Trash2 className="h-4 w-4 text-orange-400" />
                 Recycle Bin
               </DropdownMenuItem>
-              <DropdownMenuSeparator className="bg-slate-800" />
+              <DropdownMenuSeparator className="bg-white/10" />
               <DropdownMenuItem 
                 onClick={() => openModal("danger")}
-                className="focus:bg-red-500/10 focus:text-white cursor-pointer gap-2 "
+                className="focus:bg-red-500/20 focus:text-red-300 text-red-400 cursor-pointer gap-2"
               >
-                <AlertTriangle className="h-4 w-4 text-red-500" />
+                <AlertTriangle className="h-4 w-4 text-red-400" />
                 Danger Zone
               </DropdownMenuItem>
             </DropdownMenuContent>

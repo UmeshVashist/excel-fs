@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useUser } from '@clerk/nextjs';
 import { createClient } from '@/lib/supabase/client';
 import { Fingerprint, Trash2, Plus, ArrowLeft } from 'lucide-react';
 import { checkMantraDevice, startLiveCapture } from '@/lib/mantra-device';
@@ -33,6 +34,7 @@ interface EnrolledFinger {
 
 export default function FingerprintManagePage() {
   const router = useRouter();
+  const { user: clerkUser } = useUser();
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string>('');
@@ -49,17 +51,14 @@ export default function FingerprintManagePage() {
   useEffect(() => {
     const initPage = async () => {
       try {
-        // Check device with a small delay to ensure service is ready
         console.log('[v0] Initializing page, checking device...');
         await new Promise(resolve => setTimeout(resolve, 500));
         await checkDevice();
         
-        // Try to get current user
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user?.id) {
-          setUserId(user.id);
-          setEmail(user.email || '');
-          await fetchEnrolledFingers(user.id);
+        if (clerkUser?.id) {
+          setUserId(clerkUser.id);
+          setEmail(clerkUser.primaryEmailAddress?.emailAddress || '');
+          await fetchEnrolledFingers(clerkUser.id);
         }
         setLoading(false);
       } catch (err) {
@@ -69,7 +68,7 @@ export default function FingerprintManagePage() {
     };
 
     initPage();
-  }, [supabase]);
+  }, [clerkUser]);
 
   const fetchEnrolledFingers = async (userId: string) => {
     try {
@@ -323,7 +322,7 @@ export default function FingerprintManagePage() {
                   value={selectedFinger}
                   onChange={(e) => setSelectedFinger(e.target.value)}
                   disabled={isScanning}
-                  className="w-full px-4 py-2 bg-slate-800/50 border border-slate-700 text-white rounded-lg focus:outline-none focus:border-violet-500"
+                  className="w-full px-4 py-2 bg-slate-900/60 backdrop-blur-md border border-white/15 text-white rounded-xl focus:outline-none focus:border-violet-500/50 shadow-sm transition-all cursor-pointer"
                 >
                   <option value="">Choose a finger...</option>
                   {availableFingers.map((finger) => (

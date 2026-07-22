@@ -691,7 +691,7 @@ export function ChatAssistant({ userId }: ChatAssistantProps) {
                   <select
                     value={glowSpeed}
                     onChange={(e) => { setGlowSpeed(e.target.value as any); saveSetting("db_chat_glow_speed", e.target.value); }}
-                    className="w-full bg-slate-900 border border-white/10 rounded-xl px-2 py-1.5 text-white focus:outline-none focus:border-cyan-500"
+                    className="w-full bg-slate-900/60 backdrop-blur-md border border-white/15 rounded-xl px-2 py-1.5 text-white focus:outline-none focus:border-cyan-500/50 shadow-sm transition-all cursor-pointer"
                   >
                     <option value="static">Static (None)</option>
                     <option value="slow">Slow</option>

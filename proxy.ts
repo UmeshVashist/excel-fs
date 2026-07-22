@@ -1,22 +1,28 @@
-import { updateSession } from "@/lib/supabase/proxy"
-import { type NextRequest } from "next/server"
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server"
 
-export default async function proxy(request: NextRequest) {
-  return await updateSession(request)
-}
+const isPublicRoute = createRouteMatcher([
+  "/",
+  "/auth/login(.*)",
+  "/auth/sign-up(.*)",
+  "/auth/forgot-password(.*)",
+  "/auth/reset-password(.*)",
+  "/sign-in(.*)",
+  "/sign-up(.*)",
+  "/api/(.*)",
+])
 
-export const middleware = proxy;
+export default clerkMiddleware(async (auth, req) => {
+  if (!isPublicRoute(req)) {
+    await auth.protect()
+  }
+})
 
 export const config = {
   matcher: [
     /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - images - .svg, .png, .jpg, .jpeg, .gif, .webp
-     * Feel free to modify this pattern to include more paths.
+     * Match all request paths except static files and images
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/(api|trpc)(.*)",
   ],
 }

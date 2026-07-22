@@ -187,27 +187,27 @@ export default function SharedClient({ userId }: { userId: string }) {
           </div>
           <div className="flex flex-col sm:flex-row gap-4">
             <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger className="w-full sm:w-[180px] bg-slate-950/20 text-white hover:cursor-pointer">
+              <SelectTrigger className="w-full sm:w-[180px] bg-slate-900/60 backdrop-blur-md border-white/15 text-white hover:border-cyan-500/50 transition-all hover:cursor-pointer shadow-sm">
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
-              <SelectContent className="bg-slate-950/40 border-cyan-500 backdrop-blur-sm">
+              <SelectContent className="bg-slate-900/85 border-white/15 backdrop-blur-xl shadow-2xl">
                 <SelectItem value="all" className="cursor-pointer text-white hover:text-white transition-colors">All Categories</SelectItem>
-                <SelectItem value="formulas" className="cursor-pointer text-cyan-500 hover:text-white transition-colors">Formulas</SelectItem>
-                <SelectItem value="shortcuts" className="cursor-pointer text-orange-500 hover:text-white transition-colors">Shortcuts</SelectItem>
-                <SelectItem value="notes" className="cursor-pointer text-green-500 hover:text-white transition-colors">Notes</SelectItem>
-                <SelectItem value="urls" className="cursor-pointer text-orange-500 hover:text-white transition-colors">URLs</SelectItem>
-                <SelectItem value="todos" className="cursor-pointer text-cyan-500 hover:text-white transition-colors">Todos</SelectItem>
+                <SelectItem value="formulas" className="cursor-pointer text-cyan-400 hover:text-cyan-300 transition-colors">Formulas</SelectItem>
+                <SelectItem value="shortcuts" className="cursor-pointer text-amber-400 hover:text-amber-300 transition-colors">Shortcuts</SelectItem>
+                <SelectItem value="notes" className="cursor-pointer text-emerald-400 hover:text-emerald-300 transition-colors">Notes</SelectItem>
+                <SelectItem value="urls" className="cursor-pointer text-amber-400 hover:text-amber-300 transition-colors">URLs</SelectItem>
+                <SelectItem value="todos" className="cursor-pointer text-cyan-400 hover:text-cyan-300 transition-colors">Todos</SelectItem>
               </SelectContent>
             </Select>
 
             <Select value={favoriteFilter} onValueChange={setFavoriteFilter}>
-              <SelectTrigger className="w-full sm:w-[180px] bg-slate-950/20 text-white hover:cursor-pointer">
+              <SelectTrigger className="w-full sm:w-[180px] bg-slate-900/60 backdrop-blur-md border-white/15 text-white hover:border-cyan-500/50 transition-all hover:cursor-pointer shadow-sm">
                 <SelectValue placeholder="Filter by" />
               </SelectTrigger>
-              <SelectContent className="bg-slate-950/40 border-cyan-500 backdrop-blur-sm">
+              <SelectContent className="bg-slate-900/85 border-white/15 backdrop-blur-xl shadow-2xl">
                 <SelectItem value="all" className="cursor-pointer text-white hover:text-white transition-colors">All</SelectItem>
-                <SelectItem value="favorites" className="cursor-pointer text-orange-500 hover:text-white transition-colors">Favorites</SelectItem>
-                <SelectItem value="unfavorites" className="cursor-pointer text-green-500 hover:text-white transition-colors">Unfavorites</SelectItem>
+                <SelectItem value="favorites" className="cursor-pointer text-amber-400 hover:text-amber-300 transition-colors">Favorites</SelectItem>
+                <SelectItem value="unfavorites" className="cursor-pointer text-emerald-400 hover:text-emerald-300 transition-colors">Unfavorites</SelectItem>
               </SelectContent>
             </Select>
           </div>

@@ -2,23 +2,24 @@
 
 import { useEffect, useCallback } from "react"
 import { useRouter, usePathname } from "next/navigation"
+import { useClerk, useUser } from "@clerk/nextjs"
 import { createClient } from "@/lib/supabase/client"
 
-const INACTIVITY_TIMEOUT = 30 * 60 * 1000 // 30 minutes (synced with middleware)
-const PASSWORD_AGE_LIMIT = 90 * 24 * 60 * 60 * 1000 // 90 days
+const INACTIVITY_TIMEOUT = 30 * 60 * 1000 // 30 minutes
 
 export function AuthMonitor() {
   const router = useRouter()
   const pathname = usePathname()
+  const { signOut } = useClerk()
+  const { user } = useUser()
   const supabase = createClient()
 
   const logout = useCallback(async () => {
-    await supabase.auth.signOut()
-    router.push("/auth/login")
-  }, [supabase, router])
+    await signOut({ redirectUrl: "/auth/login" })
+  }, [signOut])
 
   useEffect(() => {
-    if (pathname.startsWith("/auth") || pathname === "/") return
+    if (pathname.startsWith("/auth") || pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up") || pathname === "/") return
 
     let timeoutId: NodeJS.Timeout
 
@@ -27,39 +28,12 @@ export function AuthMonitor() {
       timeoutId = setTimeout(logout, INACTIVITY_TIMEOUT)
     }
 
-    // Monitor user activity
     window.addEventListener("mousemove", resetTimer)
     window.addEventListener("keypress", resetTimer)
     window.addEventListener("scroll", resetTimer)
     window.addEventListener("click", resetTimer)
 
     resetTimer()
-
-    // Check password age
-    const checkPasswordAge = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) return
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("last_password_change")
-        .eq("id", user.id)
-        .single()
-
-      if (profile?.last_password_change) {
-        const lastChange = new Date(profile.last_password_change).getTime()
-        const now = new Date().getTime()
-
-        if (now - lastChange > PASSWORD_AGE_LIMIT && pathname !== "/settings") {
-          // Redirect to settings to change password
-          router.push("/settings?expired=true")
-        }
-      }
-    }
-
-    checkPasswordAge()
 
     return () => {
       window.removeEventListener("mousemove", resetTimer)
@@ -68,7 +42,7 @@ export function AuthMonitor() {
       window.removeEventListener("click", resetTimer)
       clearTimeout(timeoutId)
     }
-  }, [pathname, logout, supabase, router])
+  }, [pathname, logout])
 
   return null
 }

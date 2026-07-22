@@ -469,6 +469,16 @@
   & .text-purple-400 {
     color: #7c3aed !important;
   }
+  & .text-amber-300,
+  & .text-amber-400,
+  & .text-amber-500 {
+    color: #d97706 !important;
+  }
+  & .fill-amber-400,
+  & .fill-amber-500 {
+    fill: #f59e0b !important;
+    color: #d97706 !important;
+  }
   & .text-orange-300,
   & .text-orange-400,
   & .text-orange-500 {
@@ -507,8 +517,10 @@
   & .bg-slate-900\/50,
   & .bg-slate-900\/60,
   & .bg-slate-900\/70,
-  & .bg-slate-900\/80 {
-    background-color: rgba(250, 235, 215, 0.3) !important;
+  & .bg-slate-900\/80,
+  & .bg-slate-900\/85,
+  & .bg-slate-900\/90 {
+    background-color: rgba(250, 235, 215, 0.45) !important;
   }
   & .bg-slate-950 {
     background-color: rgba(250, 235, 215, 0.6) !important;
@@ -699,7 +711,26 @@
   }
 }
 
-/* Radix Portals / Dialogs / Popovers / Dropdowns / Tooltips */
+/* Default Dark Glassmorphism Dropdowns & Selects styling */
+[data-slot="select-content"],
+[data-slot="dropdown-menu-content"],
+[data-slot="popover-content"],
+[data-slot="context-menu-content"],
+[data-slot="menubar-content"] {
+  background-color: rgba(15, 23, 42, 0.88) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+}
+
+select option {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+  padding: 8px 12px !important;
+}
+
+/* Radix Portals / Dialogs / Popovers / Dropdowns / Tooltips for Neomorphic Theme */
 body:has(.theme-neomorphic-glass) [data-radix-menu-content],
 body:has(.theme-neomorphic-glass) [data-radix-popper-content-wrapper] > div,
 body:has(.theme-neomorphic-glass) [role="dialog"],
@@ -709,16 +740,23 @@ body:has(.theme-neomorphic-glass) [role="tooltip"],
 body:has(.theme-neomorphic-glass) [data-slot="popover-content"],
 body:has(.theme-neomorphic-glass) [data-slot="select-content"],
 body:has(.theme-neomorphic-glass) [data-slot="dropdown-menu-content"],
+body:has(.theme-neomorphic-glass) [data-slot="context-menu-content"],
+body:has(.theme-neomorphic-glass) [data-slot="menubar-content"],
 body:has(.theme-neomorphic-glass) [data-slot="tooltip-content"],
 body:has(.theme-neomorphic-glass) .SelectContent,
 body:has(.theme-neomorphic-glass) .PopoverContent,
 body:has(.theme-neomorphic-glass) .DialogContent {
-  background-color: rgba(250, 235, 215, 0.98) !important;
+  background-color: rgba(250, 235, 215, 0.96) !important;
   color: #2d261e !important;
   border: 1px solid rgba(180, 165, 145, 0.4) !important;
   box-shadow: 8px 8px 16px rgba(180, 165, 145, 0.25), -8px -8px 16px rgba(255, 255, 255, 0.85) !important;
-  backdrop-filter: blur(12px) !important;
+  backdrop-filter: blur(16px) !important;
   border-radius: 1rem !important;
+}
+
+body:has(.theme-neomorphic-glass) select option {
+  background-color: #FAEBD7 !important;
+  color: #2d261e !important;
 }
 
 /* Dropdown items hover states */
@@ -728,21 +766,24 @@ body:has(.theme-neomorphic-glass) [role="listbox"] [role="option"]:hover,
 body:has(.theme-neomorphic-glass) [role="listbox"] [data-highlighted],
 body:has(.theme-neomorphic-glass) [data-slot="select-content"] [role="option"]:hover,
 body:has(.theme-neomorphic-glass) [data-slot="select-content"] [data-highlighted] {
-  background-color: rgba(194, 176, 154, 0.3) !important;
+  background-color: rgba(194, 176, 154, 0.35) !important;
   color: #1c1917 !important;
   border-radius: 0.5rem !important;
 }
 
-/* Override inner hardcoded bg-slate-950 on dialog layouts, selects, menus, and dropdowns under neomorphic theme */
+/* Override inner hardcoded dark backgrounds on dialog layouts, selects, menus, and dropdowns under neomorphic theme */
 body:has(.theme-neomorphic-glass) [role="dialog"] .bg-slate-950,
 body:has(.theme-neomorphic-glass) [data-slot="dialog-content"] .bg-slate-950,
 body:has(.theme-neomorphic-glass) [data-slot="select-content"] .bg-slate-950,
+body:has(.theme-neomorphic-glass) [data-slot="select-content"] div[class*="bg-slate"],
+body:has(.theme-neomorphic-glass) [data-slot="select-content"] .select-content-overlay,
 body:has(.theme-neomorphic-glass) [data-radix-menu-content] .bg-slate-950,
+body:has(.theme-neomorphic-glass) [data-radix-menu-content] div[class*="bg-slate"],
 body:has(.theme-neomorphic-glass) [role="menu"] .bg-slate-950,
 body:has(.theme-neomorphic-glass) [role="listbox"] .bg-slate-950,
 body:has(.theme-neomorphic-glass) .DialogContent .bg-slate-950,
 body:has(.theme-neomorphic-glass) .SelectContent .bg-slate-950 {
-  background-color: rgba(250, 235, 215, 0.98) !important;
+  background-color: rgba(250, 235, 215, 0.96) !important;
 }
 
 /* Color mappings inside portal contexts to support high legibility */
@@ -800,3 +841,34 @@ body:has(.theme-neomorphic-glass) .DialogContent {
     outline: none !important;
   }
 }
+
+/* Glassmorphism overrides for Share & History Modals under Neomorphic theme */
+body:has(.theme-neomorphic-glass) .share-user-result-box {
+  background-color: rgba(250, 235, 215, 0.98) !important;
+  border-color: rgba(180, 165, 145, 0.5) !important;
+  box-shadow: 8px 8px 20px rgba(180, 165, 145, 0.35), -8px -8px 20px rgba(255, 255, 255, 0.9) !important;
+}
+
+body:has(.theme-neomorphic-glass) .share-user-result-item {
+  border-color: rgba(180, 165, 145, 0.25) !important;
+  color: #2d261e !important;
+}
+
+body:has(.theme-neomorphic-glass) .share-user-result-item:hover {
+  background-color: rgba(194, 176, 154, 0.3) !important;
+}
+
+body:has(.theme-neomorphic-glass) .history-item-card,
+body:has(.theme-neomorphic-glass) .shared-user-card {
+  background-color: rgba(250, 235, 215, 0.55) !important;
+  border-color: rgba(180, 165, 145, 0.35) !important;
+  box-shadow: 4px 4px 8px rgba(180, 165, 145, 0.25), -4px -4px 8px rgba(255, 255, 255, 0.8) !important;
+}
+
+body:has(.theme-neomorphic-glass) .history-value-box {
+  background-color: rgba(250, 235, 215, 0.7) !important;
+  border-color: rgba(180, 165, 145, 0.45) !important;
+  color: #1c1917 !important;
+  box-shadow: inset 2px 2px 5px rgba(180, 165, 145, 0.35), inset -2px -2px 5px rgba(255, 255, 255, 0.9) !important;
+}
+

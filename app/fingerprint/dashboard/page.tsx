@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useUser } from '@clerk/nextjs';
 import { createClient } from '@/lib/supabase/client';
 import { DashboardClient } from '@/app/dashboard/dashboard-client';
-import { useState } from 'react';
 
 export default function FingerprintDashboardPage() {
   const router = useRouter();
+  const { isLoaded, isSignedIn, user: clerkUser } = useUser();
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [counts, setCounts] = useState({
@@ -21,17 +22,16 @@ export default function FingerprintDashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchUserAndCounts = async () => {
-      try {
-        // Get current user from Supabase
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (!user) {
-          router.push('/fingerprint/login');
-          return;
-        }
+    if (!isLoaded) return;
 
-        setUserId(user.id);
+    if (!isSignedIn || !clerkUser) {
+      router.push('/auth/login');
+      return;
+    }
+
+    const fetchCounts = async () => {
+      try {
+        setUserId(clerkUser.id);
 
         // Fetch counts for all categories
         const [formulasRes, shortcutsRes, notesRes, urlsRes, todosRes] = await Promise.all([

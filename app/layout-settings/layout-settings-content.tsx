@@ -7,8 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
+import { useUser } from "@clerk/nextjs"
 
 export function LayoutSettingsContent() {
+  const { user: clerkUser } = useUser()
   const [theme, setTheme] = useState("default")
   const [sidebar, setSidebar] = useState("expanded")
   const [isLoading, setIsLoading] = useState(false)
@@ -18,18 +20,16 @@ export function LayoutSettingsContent() {
   const supabase = createClient()
 
   useEffect(() => {
-    loadSettings()
-  }, [])
+    if (clerkUser) {
+      loadSettings()
+    }
+  }, [clerkUser])
 
   const loadSettings = async () => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+      if (!clerkUser) return
 
-      if (!user) return
-
-      const { data, error } = await supabase.from("profiles").select("layout_settings").eq("id", user.id).single()
+      const { data, error } = await supabase.from("profiles").select("layout_settings").eq("id", clerkUser.id).single()
 
       if (error) throw error
 
@@ -48,11 +48,7 @@ export function LayoutSettingsContent() {
     setSuccess(false)
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) {
+      if (!clerkUser) {
         throw new Error("Not authenticated")
       }
 
@@ -61,12 +57,12 @@ export function LayoutSettingsContent() {
       const { error: updateError } = await supabase
         .from("profiles")
         .update({ layout_settings: layoutSettings })
-        .eq("id", user.id)
+        .eq("id", clerkUser.id)
 
       if (updateError) throw updateError
 
       const { error: historyError } = await supabase.from("layout_history").insert({
-        user_id: user.id,
+        user_id: clerkUser.id,
         layout_config: layoutSettings,
       })
 

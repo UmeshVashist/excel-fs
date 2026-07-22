@@ -74,27 +74,39 @@ export function NoteForm({
 
         if (!error) {
           if (note.title !== title) {
-            await logHistory({ resourceId: note.id, resourceType: "notes", action: "updated", fieldName: "Title", newValue: title })
+            await logHistory({ resourceId: note.id, resourceType: "notes", action: "updated", fieldName: "Title", newValue: title, userId })
           }
           if (note.description !== description) {
-            await logHistory({ resourceId: note.id, resourceType: "notes", action: "updated", fieldName: "Description", newValue: description })
+            await logHistory({ resourceId: note.id, resourceType: "notes", action: "updated", fieldName: "Description", newValue: description, userId })
           }
         }
       } else {
         // Create new note
-        const { data, error } = await supabase.from("notes").insert({
+        const insertPayload: any = {
           user_id: userId,
           title,
           description: description || null,
           is_favorite: isFavorite,
-        }).select().single()
+        }
+
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)
+        if (!isUUID) {
+          delete insertPayload.user_id
+          insertPayload.clerk_user_id = userId
+        } else {
+          insertPayload.clerk_user_id = (note as any)?.clerk_user_id || undefined
+        }
+
+        const { data, error } = await supabase.from("notes").insert(insertPayload).select().single()
 
         if (!error && data) {
-          await logHistory({ resourceId: data.id, resourceType: "notes", action: "created", newValue: title })
+          await logHistory({ resourceId: data.id, resourceType: "notes", action: "created", newValue: title, userId })
           
           if (shareAfterSave && onSave) {
             onSave(data.id, "notes")
           }
+        } else if (error) {
+          console.error("[v0] Insert note error:", error)
         }
       }
 
@@ -114,60 +126,58 @@ export function NoteForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-800 border-slate-700 text-white">
+      <DialogContent className="bg-slate-900/95 border-slate-800 backdrop-blur-2xl text-white shadow-2xl rounded-2xl sm:max-w-md">
         {isLoading ? (
-          <div className="flex justify-center items-center py-8">
+          <div className="flex justify-center items-center py-10">
             <LoadingIcon />
           </div>
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle>{note ? "Edit Note" : "Add Note"}</DialogTitle>
+              <DialogTitle className="text-white text-xl font-bold">{note ? "Edit Note" : "Add Note"}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="title">Title</Label>
+                <Label htmlFor="title" className="text-slate-200 text-xs font-semibold">Title</Label>
                 <Input
                   id="title"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   required
                   autoComplete="off"
-                  className="bg-slate-900/50 border-slate-700 text-white"
+                  className="bg-slate-950/60 border-slate-700/80 text-white h-10 text-sm rounded-xl focus:border-cyan-500 transition-all"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description" className="text-slate-200 text-xs font-semibold">Description</Label>
                 <Textarea
                   id="description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   autoComplete="off"
-                  className="bg-slate-900/50 border-slate-700 text-white max-h-[120px] overflow-y-auto"
+                  className="bg-slate-950/60 border-slate-700/80 text-white text-sm rounded-xl focus:border-cyan-500 transition-all max-h-[140px] overflow-y-auto"
                   rows={4}
                 />
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2.5 pt-1">
                 <Checkbox
                   id="favorite"
                   checked={isFavorite}
                   onCheckedChange={(checked) => setIsFavorite(checked as boolean)}
-                  className="border-slate-700 data-[state=checked]:bg-blue-500 data-[state=checked]:text-white bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900"
                 />
-                <Label htmlFor="favorite" className="cursor-pointer">
+                <Label htmlFor="favorite" className="cursor-pointer text-sm font-medium text-slate-200">
                   Mark as favorite
                 </Label>
               </div>
 
               {!note && (
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2.5">
                   <Checkbox
                     id="shareAfterSave"
                     checked={shareAfterSave}
                     onCheckedChange={(checked) => setShareAfterSave(checked as boolean)}
-                    className="border-slate-700 data-[state=checked]:bg-indigo-500 data-[state=checked]:text-white bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900"
                   />
-                  <Label htmlFor="shareAfterSave" className="cursor-pointer text-indigo-400 font-medium">
+                  <Label htmlFor="shareAfterSave" className="cursor-pointer text-sm text-indigo-400 font-semibold">
                     Share after saving
                   </Label>
                 </div>
@@ -176,14 +186,14 @@ export function NoteForm({
                 <Button
                   type="submit"
                   disabled={isLoading}
-                  className="flex-1 btn-custom btn-custom-cyan"
+                  className="flex-1 btn-custom btn-custom-cyan h-10"
                 >
                   {isLoading ? "Saving..." : note ? "Update" : "Add"}
                 </Button>
                 <Button
                   type="button"
                   onClick={() => onOpenChange(false)}
-                  className="flex-1 btn-custom btn-custom-red"
+                  className="flex-1 btn-custom btn-custom-red h-10"
                 >
                   Cancel
                 </Button>

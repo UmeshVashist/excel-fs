@@ -6,10 +6,10 @@ import { Star, Trash2, Edit, Copy, Check, Share2, History, Users, User } from "l
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
-import { copyToClipboard } from "@/lib/utils"
+import { cn, copyToClipboard } from "@/lib/utils"
 import { ShareModal } from "./share-modal"
 import { HistoryModal } from "./history-modal"
-import { getBatchSharedWith } from "@/lib/sharing-actions"
+import { getBatchSharedWith, logHistory } from "@/lib/sharing-actions"
 
 import { format } from "date-fns"
 
@@ -78,6 +78,7 @@ export function NotesList({
 
     const { error } = await supabase.from("notes").update({ is_favorite: !currentFavorite }).eq("id", id)
     if (!error) {
+      await logHistory({ resourceId: id, resourceType: "notes", action: !currentFavorite ? "favorited" : "unfavorited", userId: currentUserId })
       onUpdate()
     }
   }
@@ -94,6 +95,7 @@ export function NotesList({
       if (confirm("Are you sure you want to delete this note?")) {
         const { error } = await supabase.from("notes").update({ is_deleted: true, deleted_at: new Date().toISOString() }).eq("id", id)
         if (!error) {
+          await logHistory({ resourceId: id, resourceType: "notes", action: "deleted", userId: currentUserId })
           onUpdate()
         }
       }
@@ -154,7 +156,7 @@ export function NotesList({
                 <div className="flex-1 min-w-0">
                   <CardTitle className="text-white flex items-center gap-2 flex-wrap text-lg">
                     {note.title}
-                    {note.is_favorite && <Star className="h-4 w-4 fill-white text-white shrink-0" />}
+                    {note.is_favorite && <Star className="h-4 w-4 fill-amber-400 text-amber-400 shrink-0 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]" title="Favorite" />}
                     {!isOwner && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center gap-1">
                         <Users className="h-2.5 w-2.5" />
@@ -201,9 +203,13 @@ export function NotesList({
                       size="icon"
                       variant="ghost"
                       onClick={() => handleToggleFavorite(note.id, note.is_favorite)}
-                      className="btn-custom btn-custom-amber h-9 w-9 px-0 rounded-lg"
+                      className={cn(
+                        "btn-custom btn-custom-amber h-9 w-9 px-0 rounded-lg transition-all",
+                        note.is_favorite && "bg-amber-500/20 border-amber-500/50 shadow-[0_0_12px_rgba(245,158,11,0.3)]"
+                      )}
+                      title={note.is_favorite ? "Remove from favorites" : "Add to favorites"}
                     >
-                      <Star className={note.is_favorite ? "fill-white text-white h-4 w-4" : "h-4 w-4 text-white"} />
+                      <Star className={cn("h-4 w-4 transition-all", note.is_favorite ? "fill-amber-400 text-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.6)]" : "text-slate-400 hover:text-amber-300")} />
                     </Button>
                     
                     <Button

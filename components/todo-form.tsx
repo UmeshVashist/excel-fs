@@ -106,35 +106,47 @@ export function TodoForm({
 
         if (!error) {
           if (todo.title !== title) {
-            await logHistory({ resourceId: todo.id, resourceType: "todos", action: "updated", fieldName: "Title", newValue: title })
+            await logHistory({ resourceId: todo.id, resourceType: "todos", action: "updated", fieldName: "Title", newValue: title, userId })
           }
           if (todo.description !== description) {
-            await logHistory({ resourceId: todo.id, resourceType: "todos", action: "updated", fieldName: "Description", newValue: description })
+            await logHistory({ resourceId: todo.id, resourceType: "todos", action: "updated", fieldName: "Description", newValue: description, userId })
           }
           if (todo.status !== status) {
-            await logHistory({ resourceId: todo.id, resourceType: "todos", action: "updated", fieldName: "Status", newValue: status })
+            await logHistory({ resourceId: todo.id, resourceType: "todos", action: "updated", fieldName: "Status", newValue: status, userId })
           }
           if (todo.remark !== remark) {
-            await logHistory({ resourceId: todo.id, resourceType: "todos", action: "updated", fieldName: "Remark", newValue: remark })
+            await logHistory({ resourceId: todo.id, resourceType: "todos", action: "updated", fieldName: "Remark", newValue: remark, userId })
           }
         }
       } else {
         // Create new todo
-        const { data, error } = await supabase.from("todos").insert({
+        const insertPayload: any = {
           user_id: userId,
           title,
           description: description || null,
           remark: remark || null,
           status,
           is_favorite: isFavorite,
-        }).select().single()
+        }
+
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)
+        if (!isUUID) {
+          delete insertPayload.user_id
+          insertPayload.clerk_user_id = userId
+        } else {
+          insertPayload.clerk_user_id = (todo as any)?.clerk_user_id || undefined
+        }
+
+        const { data, error } = await supabase.from("todos").insert(insertPayload).select().single()
 
         if (!error && data) {
-          await logHistory({ resourceId: data.id, resourceType: "todos", action: "created", newValue: title })
+          await logHistory({ resourceId: data.id, resourceType: "todos", action: "created", newValue: title, userId })
           
           if (shareAfterSave && onSave) {
             onSave(data.id, "todos")
           }
+        } else if (error) {
+          console.error("[v0] Insert todo error:", error)
         }
       }
 
@@ -157,56 +169,56 @@ export function TodoForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-800 border-slate-700 text-white">
+      <DialogContent className="bg-slate-900/95 border-slate-800 backdrop-blur-2xl text-white shadow-2xl rounded-2xl sm:max-w-md">
         {isLoading ? (
-          <div className="flex justify-center items-center py-8">
+          <div className="flex justify-center items-center py-10">
             <LoadingIcon />
           </div>
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle>{todo ? "Edit Todo" : "Add Todo"}</DialogTitle>
+              <DialogTitle className="text-white text-xl font-bold">{todo ? "Edit Todo" : "Add Todo"}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="title">Title</Label>
+                <Label htmlFor="title" className="text-slate-200 text-xs font-semibold">Title</Label>
                 <Input
                   id="title"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   required
                   autoComplete="off"
-                  className="bg-slate-900/50 border-slate-700 text-white"
+                  className="bg-slate-950/60 border-slate-700/80 text-white h-10 text-sm rounded-xl focus:border-cyan-500 transition-all"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description" className="text-slate-200 text-xs font-semibold">Description</Label>
                 <Textarea
                   id="description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   autoComplete="off"
-                  className="bg-slate-900/50 border-slate-700 text-white resize-none overflow-y-auto h-32 !field-sizing-fixed"
+                  className="bg-slate-950/60 border-slate-700/80 text-white text-sm rounded-xl focus:border-cyan-500 transition-all resize-none overflow-y-auto h-28 !field-sizing-fixed"
                   rows={4}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
+                <Label htmlFor="status" className="text-slate-200 text-xs font-semibold">Status</Label>
                 <Select value={status} onValueChange={(value: "pending" | "in-process" | "complete") => setStatus(value)}>
-                  <SelectTrigger className="bg-slate-950/20 border-slate-700 text-white hover:cursor-pointer">
+                  <SelectTrigger className="bg-slate-900/60 backdrop-blur-md border-white/15 text-white h-10 rounded-xl hover:border-cyan-500/50 transition-all cursor-pointer">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-950/40 border-cyan-500 backdrop-blur-sm">
-                    <SelectItem value="pending" className="text-white hover:cursor-pointer">Pending</SelectItem>
-                    <SelectItem value="in-process" className="text-blue-500 hover:cursor-pointer">In Progress</SelectItem>
-                    <SelectItem value="complete" className="text-green-500 hover:cursor-pointer">Complete</SelectItem>
+                  <SelectContent className="bg-slate-900/85 backdrop-blur-xl border-white/15 shadow-2xl">
+                    <SelectItem value="pending" className="text-slate-200 cursor-pointer">Pending</SelectItem>
+                    <SelectItem value="in-process" className="text-blue-400 font-semibold cursor-pointer">In Progress</SelectItem>
+                    <SelectItem value="complete" className="text-green-400 font-semibold cursor-pointer">Complete</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               
               <div className="space-y-2">
                 <Label htmlFor="remark" className={cn(
-                  "text-slate-300",
+                  "text-xs font-semibold text-slate-200",
                   (status === "in-process" || status === "complete") && "text-orange-400"
                 )}>
                   Remark {(status === "in-process" || status === "complete") && <span className="text-red-500 font-bold">*</span>}
@@ -222,33 +234,31 @@ export function TodoForm({
                   }
                   autoComplete="off"
                   className={cn(
-                    "bg-slate-900/50 border-slate-700 text-white",
+                    "bg-slate-950/60 border-slate-700/80 text-white h-10 text-sm rounded-xl focus:border-cyan-500 transition-all",
                     (status === "in-process" || status === "complete") && !remark.trim() && "border-red-500/50 focus:border-red-500"
                   )}
                 />
               </div>
 
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2.5 pt-1">
                 <Checkbox
                   id="favorite"
                   checked={isFavorite}
                   onCheckedChange={(checked) => setIsFavorite(checked as boolean)}
-                  className="border-slate-700 data-[state=checked]:bg-blue-500 data-[state=checked]:text-white bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900"
                 />
-                <Label htmlFor="favorite" className="cursor-pointer">
+                <Label htmlFor="favorite" className="cursor-pointer text-sm font-medium text-slate-200">
                   Mark as favorite
                 </Label>
               </div>
 
               {!todo && (
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2.5">
                   <Checkbox
                     id="shareAfterSave"
                     checked={shareAfterSave}
                     onCheckedChange={(checked) => setShareAfterSave(checked as boolean)}
-                    className="border-slate-700 data-[state=checked]:bg-indigo-500 data-[state=checked]:text-white bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900"
                   />
-                  <Label htmlFor="shareAfterSave" className="cursor-pointer text-indigo-400 font-medium">
+                  <Label htmlFor="shareAfterSave" className="cursor-pointer text-sm text-indigo-400 font-semibold">
                     Share after saving
                   </Label>
                 </div>
@@ -257,14 +267,14 @@ export function TodoForm({
                 <Button
                   type="submit"
                   disabled={isLoading}
-                  className="flex-1 btn-custom btn-custom-cyan"
+                  className="flex-1 btn-custom btn-custom-cyan h-10"
                 >
                   {isLoading ? "Saving..." : todo ? "Update" : "Add"}
                 </Button>
                 <Button
                   type="button"
                   onClick={() => onOpenChange(false)}
-                  className="flex-1 btn-custom btn-custom-red"
+                  className="flex-1 btn-custom btn-custom-red h-10"
                 >
                   Cancel
                 </Button>

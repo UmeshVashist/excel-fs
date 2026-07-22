@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
+import { auth } from "@clerk/nextjs/server"
 
 const DEFAULT_GEMINI_KEY = process.env.GEMINI_API_KEY;
 const DEFAULT_OPENAI_KEY = process.env.OPENAI_API_KEY;
@@ -223,11 +224,11 @@ async function callOpenAI(prompt: string, apiKey: string): Promise<string> {
 export async function POST(req: Request) {
   const steps: string[] = []
   try {
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    const { userId } = await auth()
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    const supabase = await createClient()
 
     const {
       message,

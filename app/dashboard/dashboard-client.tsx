@@ -549,66 +549,66 @@ export function DashboardClient({
             {isMounted && (
               <div className="flex flex-col sm:flex-row gap-4 shrink-0">
                 <Select value={searchCategory} onValueChange={setSearchCategory}>
-                  <SelectTrigger className="w-full sm:w-[150px] bg-slate-950/20 text-white hover:cursor-pointer">
+                  <SelectTrigger className="w-full sm:w-[150px] bg-slate-900/60 backdrop-blur-md border-white/15 text-white hover:border-cyan-500/50 transition-all hover:cursor-pointer shadow-sm">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-950/40 border-cyan-500 backdrop-blur-sm">
-                    <SelectItem value="all" className="text-cyan-500 hover:text-white hover:cursor-pointer transition-colors">
+                  <SelectContent className="bg-slate-900/85 border-white/15 backdrop-blur-xl shadow-2xl">
+                    <SelectItem value="all" className="text-cyan-400 hover:text-cyan-300 hover:cursor-pointer transition-colors">
                       All Items
                     </SelectItem>
-                    <SelectItem value="notes" className="text-green-500 hover:text-white hover:cursor-pointer transition-colors">
+                    <SelectItem value="notes" className="text-emerald-400 hover:text-emerald-300 hover:cursor-pointer transition-colors">
                       Notes
                     </SelectItem>
-                    <SelectItem value="urls" className="text-orange-500 hover:text-white hover:cursor-pointer transition-colors">
+                    <SelectItem value="urls" className="text-amber-400 hover:text-amber-300 hover:cursor-pointer transition-colors">
                       URLs
                     </SelectItem>
-                    <SelectItem value="todos" className="text-cyan-500 hover:text-white hover:cursor-pointer transition-colors">
+                    <SelectItem value="todos" className="text-cyan-400 hover:text-cyan-300 hover:cursor-pointer transition-colors">
                       Todos
                     </SelectItem>
-                    <SelectItem value="formulas" className="text-cyan-500 hover:text-white hover:cursor-pointer transition-colors">
+                    <SelectItem value="formulas" className="text-cyan-400 hover:text-cyan-300 hover:cursor-pointer transition-colors">
                       Formulas
                     </SelectItem>
-                    <SelectItem value="shortcuts" className="text-orange-500 hover:text-white hover:cursor-pointer transition-colors">
+                    <SelectItem value="shortcuts" className="text-amber-400 hover:text-amber-300 hover:cursor-pointer transition-colors">
                       Shortcuts
                     </SelectItem>
-                    <SelectItem value="new" className="text-pink-500 hover:text-white hover:cursor-pointer transition-colors">
+                    <SelectItem value="new" className="text-pink-400 hover:text-pink-300 hover:cursor-pointer transition-colors">
                       New
                     </SelectItem>
                   </SelectContent>
                 </Select>
 
                 <Select value={favoriteFilter} onValueChange={setFavoriteFilter}>
-                  <SelectTrigger className="w-full sm:w-[150px] bg-slate-950/20 text-white hover:cursor-pointer">
+                  <SelectTrigger className="w-full sm:w-[150px] bg-slate-900/60 backdrop-blur-md border-white/15 text-white hover:border-cyan-500/50 transition-all hover:cursor-pointer shadow-sm">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-950/40 border-cyan-500 backdrop-blur-sm">
+                  <SelectContent className="bg-slate-900/85 border-white/15 backdrop-blur-xl shadow-2xl">
                     <SelectItem value="all" className="text-white hover:text-white hover:cursor-pointer transition-colors">
                       All
                     </SelectItem>
-                    <SelectItem value="favorites" className="text-orange-500 hover:text-white hover:cursor-pointer transition-colors">
+                    <SelectItem value="favorites" className="text-amber-400 hover:text-amber-300 hover:cursor-pointer transition-colors">
                       Favorites
                     </SelectItem>
-                    <SelectItem value="unfavorites" className="text-green-500 hover:text-white hover:cursor-pointer transition-colors">
+                    <SelectItem value="unfavorites" className="text-emerald-400 hover:text-emerald-300 hover:cursor-pointer transition-colors">
                       Unfavorites
                     </SelectItem>
                   </SelectContent>
                 </Select>
 
                 <Select value={sharedFilter} onValueChange={setSharedFilter}>
-                  <SelectTrigger className="w-full sm:w-[150px] bg-slate-950/20 text-white hover:cursor-pointer">
+                  <SelectTrigger className="w-full sm:w-[150px] bg-slate-900/60 backdrop-blur-md border-white/15 text-white hover:border-cyan-500/50 transition-all hover:cursor-pointer shadow-sm">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-950/40 border-cyan-500 backdrop-blur-sm">
+                  <SelectContent className="bg-slate-900/85 border-white/15 backdrop-blur-xl shadow-2xl">
                     <SelectItem value="all" className="text-white hover:text-white hover:cursor-pointer transition-colors">
                       All Items
                     </SelectItem>
-                    <SelectItem value="shared" className="text-indigo-500 hover:text-white hover:cursor-pointer transition-colors">
+                    <SelectItem value="shared" className="text-indigo-400 hover:text-indigo-300 hover:cursor-pointer transition-colors">
                       Shared
                     </SelectItem>
-                    <SelectItem value="unshare" className="text-red-500 hover:text-white hover:cursor-pointer transition-colors">
+                    <SelectItem value="unshare" className="text-rose-400 hover:text-rose-300 hover:cursor-pointer transition-colors">
                       Unshare
                     </SelectItem>
-                    <SelectItem value="received" className="text-green-500 hover:text-white hover:cursor-pointer transition-colors">
+                    <SelectItem value="received" className="text-emerald-400 hover:text-emerald-300 hover:cursor-pointer transition-colors">
                       Received
                     </SelectItem>
                   </SelectContent>

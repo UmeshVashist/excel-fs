@@ -1,14 +1,18 @@
-import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
+import { auth, currentUser } from "@clerk/nextjs/server"
+import { getUserDbInfo } from "@/lib/supabase/user-helper"
 import SharedClient from "./shared-client"
 
 export default async function SharedPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { userId } = await auth()
+  const clerkUser = await currentUser()
 
-  if (!user) {
+  if (!userId) {
     redirect("/auth/login")
   }
 
-  return <SharedClient userId={user.id} />
+  const email = clerkUser?.primaryEmailAddress?.emailAddress || null
+  const dbInfo = await getUserDbInfo(userId, email)
+
+  return <SharedClient userId={dbInfo.uuid} />
 }

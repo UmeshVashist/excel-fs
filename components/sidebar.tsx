@@ -135,7 +135,7 @@ export function Sidebar({ user }: { user?: any }) {
   }
 
   const handleLogout = async () => {
-    await signOut({ redirectUrl: "https://dev-tech-hub.vercel.app/auth/login" })
+    await signOut({ redirectUrl: "https://dev-tech-hub.vercel.app" })
   }
 
   return (

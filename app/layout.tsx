@@ -51,6 +51,7 @@ export default async function RootLayout({
       isSatellite={isSatellite}
       domain={domain}
       signInUrl={signInUrl}
+      satelliteAutoSync={true}
       afterSignOutUrl={`${process.env.NEXT_PUBLIC_LAUNCHER_URL || "https://dev-tech-hub.vercel.app"}/auth/login`}
     >
       <html lang="en">

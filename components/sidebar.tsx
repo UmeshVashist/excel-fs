@@ -135,18 +135,18 @@ export function Sidebar({ user }: { user?: any }) {
   }
 
   const handleLogout = async () => {
-    await signOut({ redirectUrl: "https://dev-tech-hub.vercel.app" })
+    await signOut({ redirectUrl: `${process.env.NEXT_PUBLIC_LAUNCHER_URL || "https://dev-tech-hub.vercel.app"}/auth/login` })
   }
 
   return (
     <div className="h-full w-full bg-slate-950/20 backdrop-blur-sm border-r border-white/10 text-white shadow-sm flex flex-col overflow-y-auto">
       <div className="p-6 border-b border-white/10">
-        <a href="https://dev-tech-hub.vercel.app/dashboard" className="block hover:opacity-80 transition-opacity">
+        <Link href={`${process.env.NEXT_PUBLIC_LAUNCHER_URL || "https://dev-tech-hub.vercel.app"}/dashboard`} className="block hover:opacity-80 transition-opacity">
           <h1 className="text-2xl font-bold mb-4">
               <span className="text-cyan-500">Dev</span>
               <span className="text-orange-500">Board</span>
           </h1>
-        </a>
+        </Link>
         
         {profile && (
           <DropdownMenu>

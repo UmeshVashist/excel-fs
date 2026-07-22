@@ -43,7 +43,7 @@ export default async function RootLayout({
   } : null
 
   return (
-    <ClerkProvider afterSignOutUrl="http://localhost:3000/auth/login">
+    <ClerkProvider afterSignOutUrl={`${process.env.NEXT_PUBLIC_LAUNCHER_URL || "http://localhost:3000"}/auth/login`}>
       <html lang="en">
         <body className="font-sans antialiased min-h-screen">
           <GlassBackground>

@@ -11,11 +11,18 @@ const isPublicRoute = createRouteMatcher([
   "/api/(.*)",
 ])
 
-export default clerkMiddleware(async (auth, req) => {
-  if (!isPublicRoute(req)) {
-    await auth.protect()
+export default clerkMiddleware(
+  async (auth, req) => {
+    if (!isPublicRoute(req)) {
+      await auth.protect()
+    }
+  },
+  {
+    isSatellite: process.env.NEXT_PUBLIC_CLERK_IS_SATELLITE === "true",
+    domain: process.env.NEXT_PUBLIC_CLERK_DOMAIN,
+    satelliteAutoSync: true,
   }
-})
+)
 
 export const config = {
   matcher: [

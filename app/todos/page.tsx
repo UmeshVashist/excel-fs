@@ -9,7 +9,7 @@ export default async function TodosPage() {
   const clerkUser = await currentUser()
 
   if (!userId) {
-    redirect("/auth/login")
+    redirect(process.env.NEXT_PUBLIC_CLERK_SIGN_IN_URL || "https://devtech.cashms.in/auth/login")
   }
 
   const email = clerkUser?.primaryEmailAddress?.emailAddress || null

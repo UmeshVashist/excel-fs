@@ -75,6 +75,7 @@ export function TodoForm({
     if ((status === "in-process" || status === "complete") && !remark.trim()) {
       alert(`Remark is required when a Todo is ${status === "in-process" ? "In Process" : "Completed"}.`)
       return
+    }
     setIsLoading(true)
 
     try {

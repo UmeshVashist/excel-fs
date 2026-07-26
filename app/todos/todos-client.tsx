@@ -112,7 +112,13 @@ export function TodosClient({
   }
 
   const filteredTodos = (todos as Todo[]).filter((todo) => {
-    if ((todo as any).user_id && (todo as any).user_id !== userId && (todo as any).clerk_user_id !== userId) return false
+    const isOwner =
+      !(todo as any).user_id ||
+      (todo as any).user_id === userId ||
+      (todo as any).clerk_user_id === userId ||
+      (user && ((todo as any).user_id === (user as any).clerk_user_id || (todo as any).clerk_user_id === (user as any).clerk_user_id))
+
+    if (!isOwner) return false
 
     const matchesSearch = todo.title.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesFavorite =

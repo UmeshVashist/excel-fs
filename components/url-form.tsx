@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { createClient } from "@/lib/supabase/client"
+import { addItemAction, updateItemAction } from "@/lib/item-actions"
 import { useRouter } from "next/navigation"
 import { LoadingIcon } from "@/components/loading-icon"
 import { logHistory } from "@/lib/sharing-actions"
@@ -68,73 +69,33 @@ export function UrlForm({
 
     try {
       if (url?.id) {
-        // Update existing URL
-        const { error } = await supabase
-          .from("urls")
-          .update({
-            title,
-            url: urlText,
-            username: username || null,
-            password: password || null,
-            is_favorite: isFavorite,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", url.id)
-
-        if (!error) {
-          if (url.title !== title) {
-            await logHistory({ resourceId: url.id, resourceType: "urls", action: "updated", fieldName: "Title", newValue: title, userId })
-          }
-          if (url.url !== urlText) {
-            await logHistory({ resourceId: url.id, resourceType: "urls", action: "updated", fieldName: "URL", newValue: urlText, userId })
-          }
-          if (url.username !== username) {
-            await logHistory({ resourceId: url.id, resourceType: "urls", action: "updated", fieldName: "Username", newValue: username, userId })
-          }
-        }
+        const res = await updateItemAction("urls", url.id, {
+          title,
+          url: urlText,
+          username: username || null,
+          password: password || null,
+          is_favorite: isFavorite,
+        })
+        if (res.error) console.error("Update url error:", res.error)
       } else {
-        // Create new URL
-        const insertPayload: any = {
+        const res = await addItemAction("urls", {
           user_id: userId,
           title,
           url: urlText,
           username: username || null,
           password: password || null,
           is_favorite: isFavorite,
-        }
-
-        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)
-        if (!isUUID) {
-          delete insertPayload.user_id
-          insertPayload.clerk_user_id = userId
-        } else {
-          insertPayload.clerk_user_id = (url as any)?.clerk_user_id || undefined
-        }
-
-        const { data, error } = await supabase.from("urls").insert(insertPayload).select().single()
-
-        if (!error && data) {
-          await logHistory({ resourceId: data.id, resourceType: "urls", action: "created", newValue: title, userId })
-          
-          if (shareAfterSave && onSave) {
-            onSave(data.id, "urls")
-          }
-        } else if (error) {
-          console.error("[v0] Insert url error:", error)
+        })
+        if (!res.error && res.data && shareAfterSave && onSave) {
+          onSave(res.data.id, "urls")
         }
       }
 
-      setTitle("")
-      setUrlText("")
-      setUsername("")
-      setPassword("")
-      setIsFavorite(false)
       setShareAfterSave(false)
-
       onOpenChange(false)
       router.refresh()
     } catch (error) {
-      console.error("[v0] Error saving URL:", error)
+      console.error("Error saving url:", error)
     } finally {
       setIsLoading(false)
     }

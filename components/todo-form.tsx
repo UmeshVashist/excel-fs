@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { createClient } from "@/lib/supabase/client"
+import { addItemAction, updateItemAction } from "@/lib/item-actions"
 import { useRouter } from "next/navigation"
 import { LoadingIcon } from "@/components/loading-icon"
 import { cn } from "@/lib/utils"
@@ -74,94 +75,37 @@ export function TodoForm({
     if ((status === "in-process" || status === "complete") && !remark.trim()) {
       alert(`Remark is required when a Todo is ${status === "in-process" ? "In Process" : "Completed"}.`)
       return
-    }
-
     setIsLoading(true)
 
     try {
-      console.log("Saving todo with data:", { title, description, remark, status, isFavorite, todoId: todo?.id })
-      
       if (todo?.id) {
-        // Update existing todo
-        const { data: updateData, error } = await supabase
-          .from("todos")
-          .update({
-            title,
-            description: description || null,
-            remark: remark || null,
-            status,
-            is_favorite: isFavorite,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", todo.id)
-          .select()
-
-        if (error) {
-          console.error("Supabase update error:", error)
-          alert("Error updating todo: " + error.message)
-          throw error
-        }
-
-        console.log("Update success:", updateData)
-
-        if (!error) {
-          if (todo.title !== title) {
-            await logHistory({ resourceId: todo.id, resourceType: "todos", action: "updated", fieldName: "Title", newValue: title, userId })
-          }
-          if (todo.description !== description) {
-            await logHistory({ resourceId: todo.id, resourceType: "todos", action: "updated", fieldName: "Description", newValue: description, userId })
-          }
-          if (todo.status !== status) {
-            await logHistory({ resourceId: todo.id, resourceType: "todos", action: "updated", fieldName: "Status", newValue: status, userId })
-          }
-          if (todo.remark !== remark) {
-            await logHistory({ resourceId: todo.id, resourceType: "todos", action: "updated", fieldName: "Remark", newValue: remark, userId })
-          }
-        }
-      } else {
-        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)
-        const insertPayload: any = {
+        const res = await updateItemAction("todos", todo.id, {
           title,
           description: description || null,
           remark: remark || null,
           status,
           is_favorite: isFavorite,
-        }
-
-        if (isUUID) {
-          insertPayload.user_id = userId
-          if ((todo as any)?.clerk_user_id) {
-            insertPayload.clerk_user_id = (todo as any).clerk_user_id
-          }
-        } else {
-          insertPayload.clerk_user_id = userId
-        }
-
-        const { data, error } = await supabase.from("todos").insert(insertPayload).select().single()
-
-        if (!error && data) {
-          await logHistory({ resourceId: data.id, resourceType: "todos", action: "created", newValue: title, userId })
-          
-          if (shareAfterSave && onSave) {
-            onSave(data.id, "todos")
-          }
-        } else if (error) {
-          console.error("[v0] Insert todo error:", error)
+        })
+        if (res.error) console.error("Update todo error:", res.error)
+      } else {
+        const res = await addItemAction("todos", {
+          user_id: userId,
+          title,
+          description: description || null,
+          remark: remark || null,
+          status,
+          is_favorite: isFavorite,
+        })
+        if (!res.error && res.data && shareAfterSave && onSave) {
+          onSave(res.data.id, "todos")
         }
       }
 
-      setTitle("")
-      setDescription("")
-      setRemark("")
-      setStatus("pending")
-      setIsFavorite(false)
       setShareAfterSave(false)
-
-      onUpdate?.()
       onOpenChange(false)
       router.refresh()
     } catch (error) {
-      console.error("[v0] Error saving todo:", error)
+      console.error("Error saving todo:", error)
     } finally {
       setIsLoading(false)
     }

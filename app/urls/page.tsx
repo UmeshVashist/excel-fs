@@ -24,7 +24,7 @@ export default async function UrlsPage() {
     .from("urls")
     .select("*")
     .or(filterOr)
-    .eq("is_deleted", false)
+    .neq("is_deleted", true)
     .order("created_at", { ascending: false })
 
   const user = clerkUser

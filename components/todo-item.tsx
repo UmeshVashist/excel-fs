@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react"
 import { Star, Edit2, Trash2, Copy, Check, Share2, History, Users, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
+import { deleteItemAction, toggleFavoriteAction } from "@/lib/item-actions"
 import { useRouter } from "next/navigation"
 import { cn, copyToClipboard } from "@/lib/utils"
 import { ShareModal } from "./share-modal"
@@ -58,43 +59,15 @@ export function TodoItem({
   }, [initialShares])
 
   const handleFavoriteToggle = async () => {
-    await supabase.from("todos").update({ is_favorite: !isFavorite }).eq("id", todo.id)
-    await logHistory({ resourceId: todo.id, resourceType: "todos", action: !isFavorite ? "favorited" : "unfavorited", userId: currentUserId })
+    await toggleFavoriteAction("todos", todo.id, isFavorite)
     setIsFavorite(!isFavorite)
     onUpdate()
   }
 
   const handleDelete = async () => {
-    if (isOwner) {
-      if (confirm("Are you sure you want to move this todo to Recycle Bin?")) {
-        const { error } = await supabase
-          .from("todos")
-          .update({ 
-            is_deleted: true, 
-            deleted_at: new Date().toISOString() 
-          })
-          .eq("id", todo.id)
-        
-        if (error) {
-          console.error("Error moving todo to recycle bin:", error)
-          alert("Failed to move item to recycle bin.")
-        } else {
-          await logHistory({ resourceId: todo.id, resourceType: "todos", action: "deleted", userId: currentUserId })
-          onUpdate()
-        }
-      }
-    } else {
-      if (confirm("This item was shared with you. Are you sure you want to remove it from your list?")) {
-        const { error } = await supabase
-          .from("shared_items")
-          .delete()
-          .eq("resource_id", todo.id)
-          .eq("shared_with_id", currentUserId)
-        
-        if (!error) {
-          onUpdate()
-        }
-      }
+    if (confirm("Are you sure you want to move this todo to Recycle Bin?")) {
+      await deleteItemAction("todos", todo.id)
+      onUpdate()
     }
   }
 

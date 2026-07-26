@@ -59,64 +59,31 @@ export function FormulaForm({
     }
   }, [formula, open])
 
+import { addItemAction, updateItemAction } from "@/lib/item-actions"
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
     try {
       if (formula?.id) {
-        // Update existing formula
-        const { error } = await supabase
-          .from("formulas")
-          .update({
-            title,
-            description: description || null,
-            formula: formulaText,
-            is_favorite: isFavorite,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", formula.id)
-
-        if (!error) {
-          // Log changes
-          if (formula.title !== title) {
-            await logHistory({ resourceId: formula.id, resourceType: "formulas", action: "updated", fieldName: "Title", newValue: title, userId })
-          }
-          if (formula.description !== description) {
-            await logHistory({ resourceId: formula.id, resourceType: "formulas", action: "updated", fieldName: "Description", newValue: description, userId })
-          }
-          if (formula.formula !== formulaText) {
-            await logHistory({ resourceId: formula.id, resourceType: "formulas", action: "updated", fieldName: "Formula", newValue: formulaText, userId })
-          }
-        }
-      } else {
-        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)
-        const insertPayload: any = {
+        const res = await updateItemAction("formulas", formula.id, {
           title,
           description: description || null,
           formula: formulaText,
           is_favorite: isFavorite,
-        }
-
-        if (isUUID) {
-          insertPayload.user_id = userId
-          if ((formula as any)?.clerk_user_id) {
-            insertPayload.clerk_user_id = (formula as any).clerk_user_id
-          }
-        } else {
-          insertPayload.clerk_user_id = userId
-        }
-
-        const { data, error } = await supabase.from("formulas").insert(insertPayload).select().single()
-
-        if (!error && data) {
-          await logHistory({ resourceId: data.id, resourceType: "formulas", action: "created", newValue: title, userId })
-          
-          if (shareAfterSave && onSave) {
-            onSave(data.id, "formulas")
-          }
-        } else if (error) {
-          console.error("[v0] Insert formula error:", error)
+        })
+        if (res.error) console.error("Update formula error:", res.error)
+      } else {
+        const res = await addItemAction("formulas", {
+          user_id: userId,
+          title,
+          description: description || null,
+          formula: formulaText,
+          is_favorite: isFavorite,
+        })
+        if (!res.error && res.data && shareAfterSave && onSave) {
+          onSave(res.data.id, "formulas")
         }
       }
 
@@ -124,7 +91,7 @@ export function FormulaForm({
       onOpenChange(false)
       router.refresh()
     } catch (error) {
-      console.error("[v0] Error saving formula:", error)
+      console.error("Error saving formula:", error)
     } finally {
       setIsLoading(false)
     }

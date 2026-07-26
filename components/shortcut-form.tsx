@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { createClient } from "@/lib/supabase/client"
+import { addItemAction, updateItemAction } from "@/lib/item-actions"
 import { useRouter } from "next/navigation"
 import { LoadingIcon } from "@/components/loading-icon"
 import { logHistory } from "@/lib/sharing-actions"
@@ -65,57 +66,23 @@ export function ShortcutForm({
 
     try {
       if (shortcut?.id) {
-        // Update existing shortcut
-        const { error } = await supabase
-          .from("shortcuts")
-          .update({
-            title,
-            description: description || null,
-            shortcut: shortcutText,
-            is_favorite: isFavorite,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", shortcut.id)
-
-        if (!error) {
-          if (shortcut.title !== title) {
-            await logHistory({ resourceId: shortcut.id, resourceType: "shortcuts", action: "updated", fieldName: "Title", newValue: title, userId })
-          }
-          if (shortcut.description !== description) {
-            await logHistory({ resourceId: shortcut.id, resourceType: "shortcuts", action: "updated", fieldName: "Description", newValue: description, userId })
-          }
-          if (shortcut.shortcut !== shortcutText) {
-            await logHistory({ resourceId: shortcut.id, resourceType: "shortcuts", action: "updated", fieldName: "Shortcut", newValue: shortcutText, userId })
-          }
-        }
-      } else {
-        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)
-        const insertPayload: any = {
+        const res = await updateItemAction("shortcuts", shortcut.id, {
           title,
           description: description || null,
-          shortcut: shortcutText,
+          keys: shortcutKeys,
           is_favorite: isFavorite,
-        }
-
-        if (isUUID) {
-          insertPayload.user_id = userId
-          if ((shortcut as any)?.clerk_user_id) {
-            insertPayload.clerk_user_id = (shortcut as any).clerk_user_id
-          }
-        } else {
-          insertPayload.clerk_user_id = userId
-        }
-
-        const { data, error } = await supabase.from("shortcuts").insert(insertPayload).select().single()
-
-        if (!error && data) {
-          await logHistory({ resourceId: data.id, resourceType: "shortcuts", action: "created", newValue: title, userId })
-          
-          if (shareAfterSave && onSave) {
-            onSave(data.id, "shortcuts")
-          }
-        } else if (error) {
-          console.error("[v0] Insert shortcut error:", error)
+        })
+        if (res.error) console.error("Update shortcut error:", res.error)
+      } else {
+        const res = await addItemAction("shortcuts", {
+          user_id: userId,
+          title,
+          description: description || null,
+          keys: shortcutKeys,
+          is_favorite: isFavorite,
+        })
+        if (!res.error && res.data && shareAfterSave && onSave) {
+          onSave(res.data.id, "shortcuts")
         }
       }
 
@@ -123,7 +90,7 @@ export function ShortcutForm({
       onOpenChange(false)
       router.refresh()
     } catch (error) {
-      console.error("[v0] Error saving shortcut:", error)
+      console.error("Error saving shortcut:", error)
     } finally {
       setIsLoading(false)
     }

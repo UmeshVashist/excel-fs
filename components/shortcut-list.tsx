@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Star, Trash2, Edit, Copy, Check, Share2, History, Users, User } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { deleteItemAction, toggleFavoriteAction } from "@/lib/item-actions"
 import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
 import { cn, copyToClipboard } from "@/lib/utils"
@@ -76,12 +77,8 @@ export function ShortcutList({
       await onToggleFavorite(id, currentFavorite)
       return
     }
-
-    const { error } = await supabase.from("shortcuts").update({ is_favorite: !currentFavorite }).eq("id", id)
-    if (!error) {
-      await logHistory({ resourceId: id, resourceType: "shortcuts", action: !currentFavorite ? "favorited" : "unfavorited", userId: currentUserId })
-      onUpdate()
-    }
+    await toggleFavoriteAction("shortcuts", id, currentFavorite)
+    onUpdate()
   }
 
   const handleDelete = async (id: string, ownerId: string) => {
@@ -90,37 +87,9 @@ export function ShortcutList({
       return
     }
 
-    const targetShortcut = shortcuts.find(s => s.id === id)
-    const isOwner = !ownerId || ownerId === currentUserId || !(targetShortcut as any)?.shared_permission
-
-    if (isOwner) {
-      if (confirm("Are you sure you want to move this shortcut to Recycle Bin?")) {
-        const { error } = await supabase
-          .from("shortcuts")
-          .update({ 
-            is_deleted: true, 
-            deleted_at: new Date().toISOString() 
-          })
-          .eq("id", id)
-        
-        if (!error) {
-          await logHistory({ resourceId: id, resourceType: "shortcuts", action: "deleted", userId: currentUserId })
-          onUpdate()
-        }
-      }
-    } else {
-      if (confirm("This item was shared with you. Are you sure you want to remove it from your list?")) {
-        const { error } = await supabase
-          .from("shared_items")
-          .delete()
-          .eq("resource_id", id)
-          .eq("shared_with_id", currentUserId)
-          .eq("resource_type", "shortcuts")
-        
-        if (!error) {
-          onUpdate()
-        }
-      }
+    if (confirm("Are you sure you want to move this shortcut to Recycle Bin?")) {
+      await deleteItemAction("shortcuts", id)
+      onUpdate()
     }
   }
 

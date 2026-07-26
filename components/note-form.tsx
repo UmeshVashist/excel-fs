@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { createClient } from "@/lib/supabase/client"
+import { addItemAction, updateItemAction } from "@/lib/item-actions"
 import { useRouter } from "next/navigation"
 import { LoadingIcon } from "@/components/loading-icon"
 import { logHistory } from "@/lib/sharing-actions"
@@ -61,52 +62,21 @@ export function NoteForm({
 
     try {
       if (note?.id) {
-        // Update existing note
-        const { error } = await supabase
-          .from("notes")
-          .update({
-            title,
-            description: description || null,
-            is_favorite: isFavorite,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", note.id)
-
-        if (!error) {
-          if (note.title !== title) {
-            await logHistory({ resourceId: note.id, resourceType: "notes", action: "updated", fieldName: "Title", newValue: title, userId })
-          }
-          if (note.description !== description) {
-            await logHistory({ resourceId: note.id, resourceType: "notes", action: "updated", fieldName: "Description", newValue: description, userId })
-          }
-        }
-      } else {
-        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)
-        const insertPayload: any = {
+        const res = await updateItemAction("notes", note.id, {
           title,
           description: description || null,
           is_favorite: isFavorite,
-        }
-
-        if (isUUID) {
-          insertPayload.user_id = userId
-          if ((note as any)?.clerk_user_id) {
-            insertPayload.clerk_user_id = (note as any).clerk_user_id
-          }
-        } else {
-          insertPayload.clerk_user_id = userId
-        }
-
-        const { data, error } = await supabase.from("notes").insert(insertPayload).select().single()
-
-        if (!error && data) {
-          await logHistory({ resourceId: data.id, resourceType: "notes", action: "created", newValue: title, userId })
-          
-          if (shareAfterSave && onSave) {
-            onSave(data.id, "notes")
-          }
-        } else if (error) {
-          console.error("[v0] Insert note error:", error)
+        })
+        if (res.error) console.error("Update note error:", res.error)
+      } else {
+        const res = await addItemAction("notes", {
+          user_id: userId,
+          title,
+          description: description || null,
+          is_favorite: isFavorite,
+        })
+        if (!res.error && res.data && shareAfterSave && onSave) {
+          onSave(res.data.id, "notes")
         }
       }
 
@@ -118,7 +88,7 @@ export function NoteForm({
       onOpenChange(false)
       router.refresh()
     } catch (error) {
-      console.error("[v0] Error saving note:", error)
+      console.error("Error saving note:", error)
     } finally {
       setIsLoading(false)
     }

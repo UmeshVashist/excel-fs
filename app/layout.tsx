@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { ClerkProvider } from "@clerk/nextjs"
 import { currentUser } from "@clerk/nextjs/server"
+import { headers } from "next/headers"
 import "./globals.css"
 import { GlassBackground } from "@/components/glass-background"
 import { SidebarProvider } from "@/components/sidebar-provider"
@@ -42,9 +43,18 @@ export default async function RootLayout({
     }
   } : null
 
+  const headersList = await headers()
+  const host = headersList.get("host") || ""
+  const isLocalhost = host.includes("localhost")
+
   const isSatellite = process.env.NEXT_PUBLIC_CLERK_IS_SATELLITE === "true";
-  const domain = process.env.NEXT_PUBLIC_CLERK_DOMAIN;
-  const signInUrl = process.env.NEXT_PUBLIC_CLERK_SIGN_IN_URL;
+  const domain = isLocalhost ? host : process.env.NEXT_PUBLIC_CLERK_DOMAIN;
+  const signInUrl = isLocalhost 
+    ? "http://localhost:3000/auth/login" 
+    : process.env.NEXT_PUBLIC_CLERK_SIGN_IN_URL;
+  const launcherUrl = isLocalhost 
+    ? "http://localhost:3000" 
+    : (process.env.NEXT_PUBLIC_LAUNCHER_URL || "https://dev-tech-hub.vercel.app");
 
   return (
     <ClerkProvider
@@ -52,7 +62,7 @@ export default async function RootLayout({
       domain={domain}
       signInUrl={signInUrl}
       satelliteAutoSync={true}
-      afterSignOutUrl={`${process.env.NEXT_PUBLIC_LAUNCHER_URL || "https://dev-tech-hub.vercel.app"}/auth/login`}
+      afterSignOutUrl={`${launcherUrl}/auth/login`}
     >
       <html lang="en">
         <body className="font-sans antialiased min-h-screen">

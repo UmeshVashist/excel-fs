@@ -20,7 +20,7 @@ export default function SignUpPage() {
           path="/auth/sign-up"
           routing="path"
           signInUrl="/auth/login"
-          forceRedirectUrl="/dashboard"
+          fallbackRedirectUrl="/dashboard"
           appearance={{
             baseTheme: dark,
             elements: {

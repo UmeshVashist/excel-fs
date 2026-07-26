@@ -90,22 +90,21 @@ export function FormulaForm({
           }
         }
       } else {
-        // Create new formula
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)
         const insertPayload: any = {
-          user_id: userId,
           title,
           description: description || null,
           formula: formulaText,
           is_favorite: isFavorite,
         }
 
-        // If userId is a valid UUID, include it as user_id. Always include clerk_user_id if present.
-        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)
-        if (!isUUID) {
-          delete insertPayload.user_id
-          insertPayload.clerk_user_id = userId
+        if (isUUID) {
+          insertPayload.user_id = userId
+          if ((formula as any)?.clerk_user_id) {
+            insertPayload.clerk_user_id = (formula as any).clerk_user_id
+          }
         } else {
-          insertPayload.clerk_user_id = (formula as any)?.clerk_user_id || undefined
+          insertPayload.clerk_user_id = userId
         }
 
         const { data, error } = await supabase.from("formulas").insert(insertPayload).select().single()

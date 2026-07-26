@@ -92,7 +92,7 @@ export function ShortcutsClient({
   }
 
   const filteredShortcuts = useMemo(() => {
-    let result = shortcuts.filter(s => s.user_id === userId)
+    let result = shortcuts.filter(s => s.user_id === userId || (s as any).clerk_user_id === userId || !s.user_id)
 
     if (searchQuery) {
       result = result.filter((s) =>

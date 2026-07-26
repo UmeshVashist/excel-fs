@@ -49,7 +49,7 @@ export function TodoItem({
   const router = useRouter()
   const supabase = useMemo(() => createClient(), [])
 
-  const isOwner = todo.user_id === currentUserId
+  const isOwner = !todo.user_id || todo.user_id === currentUserId || !(todo as any)?.shared_permission
   const canEdit = isOwner || todo.shared_permission === "edit"
 
   // Update local shares when initialShares prop changes

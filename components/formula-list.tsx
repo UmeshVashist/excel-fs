@@ -88,7 +88,8 @@ export function FormulaList({
       return
     }
 
-    const isOwner = ownerId === currentUserId
+    const targetFormula = formulas.find(f => f.id === id)
+    const isOwner = !ownerId || ownerId === currentUserId || !(targetFormula as any)?.shared_permission
 
     if (isOwner) {
       if (confirm("Are you sure you want to move this formula to Recycle Bin?")) {

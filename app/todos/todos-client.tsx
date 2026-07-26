@@ -112,8 +112,7 @@ export function TodosClient({
   }
 
   const filteredTodos = (todos as Todo[]).filter((todo) => {
-    // Only show self-created items on this page
-    if ((todo as any).user_id !== userId) return false
+    if ((todo as any).user_id && (todo as any).user_id !== userId && (todo as any).clerk_user_id !== userId) return false
 
     const matchesSearch = todo.title.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesFavorite =

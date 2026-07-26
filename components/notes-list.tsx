@@ -89,7 +89,8 @@ export function NotesList({
       return
     }
 
-    const isOwner = ownerId === currentUserId
+    const targetNote = notes.find(n => n.id === id)
+    const isOwner = !ownerId || ownerId === currentUserId || !(targetNote as any)?.shared_permission
 
     if (isOwner) {
       if (confirm("Are you sure you want to delete this note?")) {

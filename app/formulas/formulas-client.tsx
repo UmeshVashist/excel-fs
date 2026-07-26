@@ -95,7 +95,7 @@ export function FormulasClient({
   }
 
   const filteredFormulas = useMemo(() => {
-    let result = formulas.filter(f => f.user_id === userId) // Only self-created items
+    let result = formulas.filter(f => f.user_id === userId || (f as any).clerk_user_id === userId || !f.user_id)
 
     // Apply search filter
     if (searchQuery) {

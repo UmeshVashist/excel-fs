@@ -90,7 +90,8 @@ export function ShortcutList({
       return
     }
 
-    const isOwner = ownerId === currentUserId
+    const targetShortcut = shortcuts.find(s => s.id === id)
+    const isOwner = !ownerId || ownerId === currentUserId || !(targetShortcut as any)?.shared_permission
 
     if (isOwner) {
       if (confirm("Are you sure you want to move this shortcut to Recycle Bin?")) {

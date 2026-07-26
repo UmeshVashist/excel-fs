@@ -119,9 +119,8 @@ export function TodoForm({
           }
         }
       } else {
-        // Create new todo
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)
         const insertPayload: any = {
-          user_id: userId,
           title,
           description: description || null,
           remark: remark || null,
@@ -129,12 +128,13 @@ export function TodoForm({
           is_favorite: isFavorite,
         }
 
-        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)
-        if (!isUUID) {
-          delete insertPayload.user_id
-          insertPayload.clerk_user_id = userId
+        if (isUUID) {
+          insertPayload.user_id = userId
+          if ((todo as any)?.clerk_user_id) {
+            insertPayload.clerk_user_id = (todo as any).clerk_user_id
+          }
         } else {
-          insertPayload.clerk_user_id = (todo as any)?.clerk_user_id || undefined
+          insertPayload.clerk_user_id = userId
         }
 
         const { data, error } = await supabase.from("todos").insert(insertPayload).select().single()

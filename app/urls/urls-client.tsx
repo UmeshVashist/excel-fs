@@ -97,7 +97,7 @@ export function UrlsClient({
   }
 
   const filteredUrls = useMemo(() => {
-    let result = urls.filter(u => u.user_id === userId)
+    let result = urls.filter(u => u.user_id === userId || (u as any).clerk_user_id === userId || !u.user_id)
 
     if (searchQuery) {
       result = result.filter((u) =>

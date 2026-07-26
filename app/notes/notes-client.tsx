@@ -92,7 +92,7 @@ export function NotesClient({
   }
 
   const filteredNotes = useMemo(() => {
-    let result = notes.filter(n => n.user_id === userId)
+    let result = notes.filter(n => n.user_id === userId || (n as any).clerk_user_id === userId || !n.user_id)
 
     if (searchQuery) {
       result = result.filter((n) =>

@@ -81,20 +81,20 @@ export function NoteForm({
           }
         }
       } else {
-        // Create new note
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)
         const insertPayload: any = {
-          user_id: userId,
           title,
           description: description || null,
           is_favorite: isFavorite,
         }
 
-        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)
-        if (!isUUID) {
-          delete insertPayload.user_id
-          insertPayload.clerk_user_id = userId
+        if (isUUID) {
+          insertPayload.user_id = userId
+          if ((note as any)?.clerk_user_id) {
+            insertPayload.clerk_user_id = (note as any).clerk_user_id
+          }
         } else {
-          insertPayload.clerk_user_id = (note as any)?.clerk_user_id || undefined
+          insertPayload.clerk_user_id = userId
         }
 
         const { data, error } = await supabase.from("notes").insert(insertPayload).select().single()

@@ -12,33 +12,16 @@ const isPublicRoute = createRouteMatcher([
   "/__clerk/(.*)",
 ])
 
-export default clerkMiddleware(
-  async (auth, req) => {
-    if (!isPublicRoute(req)) {
-      await auth.protect()
-    }
-  },
-  (req) => {
-    const host = req.nextUrl.host;
-    const isLocalhost = host.includes("localhost");
-    const rawDomain = isLocalhost ? host : process.env.NEXT_PUBLIC_CLERK_DOMAIN;
-    const domain = rawDomain ? rawDomain.replace(/^https?:\/\//, "") : undefined;
-    return {
-      isSatellite: process.env.NEXT_PUBLIC_CLERK_IS_SATELLITE === "true",
-      domain,
-      satelliteAutoSync: true,
-      signInUrl: isLocalhost 
-        ? "http://localhost:3000/auth/login" 
-        : process.env.NEXT_PUBLIC_CLERK_SIGN_IN_URL,
-    };
+export default clerkMiddleware(async (auth, req) => {
+  console.log("DevBoard Middleware executing for path:", req.nextUrl.pathname);
+  if (!isPublicRoute(req)) {
+    await auth.protect()
   }
-)
+})
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except static files and images
-     */
+    "/",
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
     "/(api|trpc)(.*)",
   ],

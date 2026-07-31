@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation"
 import { auth, currentUser } from "@clerk/nextjs/server"
 import { createClient } from "@/lib/supabase/server"
-import { getUserDbInfo, countItemsForUser } from "@/lib/supabase/user-helper"
+import { getUserDbInfo, countItemsForUser, isValidUUID } from "@/lib/supabase/user-helper"
 import { DashboardClient } from "./dashboard-client"
 
 export default async function DashboardPage() {
@@ -17,6 +17,8 @@ export default async function DashboardPage() {
 
   const supabase = await createClient()
 
+  const validUuids = dbInfo.userIds.filter(isValidUUID)
+
   // Fetching initial counts for all categories
   const [formulasCount, shortcutsCount, notesCount, urlsCount, todosCount, sharedItemsRes] = await Promise.all([
     countItemsForUser(supabase, "formulas", dbInfo.userIds),
@@ -24,7 +26,9 @@ export default async function DashboardPage() {
     countItemsForUser(supabase, "notes", dbInfo.userIds),
     countItemsForUser(supabase, "urls", dbInfo.userIds),
     countItemsForUser(supabase, "todos", dbInfo.userIds),
-    supabase.from("shared_items").select("resource_id, resource_type").in("shared_with_id", dbInfo.userIds),
+    validUuids.length > 0
+      ? supabase.from("shared_items").select("resource_id, resource_type").in("shared_with_id", validUuids)
+      : Promise.resolve({ data: [] }),
   ])
 
   // Calculate actual visible shared count by checking if resources are not deleted

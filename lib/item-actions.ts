@@ -2,7 +2,7 @@
 
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
 import { auth, currentUser } from "@clerk/nextjs/server"
-import { getUserDbInfo, fetchItemsForUser } from "@/lib/supabase/user-helper"
+import { getUserDbInfo, fetchItemsForUser, isValidUUID } from "@/lib/supabase/user-helper"
 import { revalidatePath } from "next/cache"
 import { logHistory } from "./sharing-actions"
 
@@ -255,6 +255,9 @@ export async function getDashboardItemsAction(params: {
     const cleanQuery = searchQuery.trim().replace(/[*%]/g, "")
     const results: any = { formulas: [], shortcuts: [], notes: [], urls: [], todos: [], sharesInfo: {} }
 
+    const validUuids = dbInfo.userIds.filter(isValidUUID)
+    const nonUuids = dbInfo.userIds.filter((id) => !isValidUUID(id))
+
     let sharedByMeIds: Record<string, string[]> = {
       formulas: [],
       shortcuts: [],
@@ -263,11 +266,11 @@ export async function getDashboardItemsAction(params: {
       todos: [],
     }
 
-    if (sharedFilter === "shared" || sharedFilter === "unshare") {
+    if ((sharedFilter === "shared" || sharedFilter === "unshare") && validUuids.length > 0) {
       const { data: shares } = await supabase
         .from("shared_items")
         .select("resource_id, resource_type")
-        .in("owner_id", dbInfo.userIds)
+        .in("owner_id", validUuids)
 
       if (shares) {
         shares.forEach((s) => {
@@ -290,8 +293,15 @@ export async function getDashboardItemsAction(params: {
         let query = supabase
           .from(table)
           .select("*")
-          .in("user_id", dbInfo.userIds)
           .neq("is_deleted", true)
+
+        if (validUuids.length > 0 && nonUuids.length > 0) {
+          query = query.or(`user_id.in.(${validUuids.join(",")}),clerk_user_id.in.(${nonUuids.join(",")})`)
+        } else if (validUuids.length > 0) {
+          query = query.in("user_id", validUuids)
+        } else if (nonUuids.length > 0) {
+          query = query.in("clerk_user_id", nonUuids)
+        }
 
         if (cleanQuery) {
           query = query.or(`title.ilike.*${cleanQuery}*,description.ilike.*${cleanQuery}*`)
@@ -315,14 +325,17 @@ export async function getDashboardItemsAction(params: {
         }
 
         const limitCount = searchCategory === "new" ? 5 : 50
-        const { data: owned } = await query.order("created_at", { ascending: false }).limit(limitCount)
+        const { data: owned, error: ownedErr } = await query.order("created_at", { ascending: false }).limit(limitCount)
+        if (ownedErr) {
+          console.error(`getDashboardItemsAction error fetching ${table}:`, ownedErr)
+        }
 
         let shared: any[] = []
-        if (sharedFilter !== "shared" && sharedFilter !== "unshare") {
+        if (sharedFilter !== "shared" && sharedFilter !== "unshare" && validUuids.length > 0) {
           const { data: sharedItems } = await supabase
             .from("shared_items")
             .select("resource_id, permission, created_at")
-            .in("shared_with_id", dbInfo.userIds)
+            .in("shared_with_id", validUuids)
             .eq("resource_type", table)
 
           if (sharedItems && sharedItems.length > 0) {

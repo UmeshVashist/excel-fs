@@ -69,7 +69,7 @@ export function ShortcutForm({
         const res = await updateItemAction("shortcuts", shortcut.id, {
           title,
           description: description || null,
-          keys: shortcutKeys,
+          shortcut: shortcutText,
           is_favorite: isFavorite,
         })
         if (res.error) console.error("Update shortcut error:", res.error)
@@ -78,7 +78,7 @@ export function ShortcutForm({
           user_id: userId,
           title,
           description: description || null,
-          keys: shortcutKeys,
+          shortcut: shortcutText,
           is_favorite: isFavorite,
         })
         if (!res.error && res.data && shareAfterSave && onSave) {

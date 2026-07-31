@@ -229,4 +229,157 @@ export async function getItemsAction(table: string, extraOptions?: any) {
   }
 }
 
+export async function getDashboardItemsAction(params: {
+  searchQuery?: string
+  searchCategory?: string
+  favoriteFilter?: string
+  sharedFilter?: string
+}) {
+  try {
+    const { userId: clerkUserId } = await auth()
+    if (!clerkUserId) return { data: null, error: "Unauthorized" }
+
+    const clerkUser = await currentUser()
+    const email = clerkUser?.primaryEmailAddress?.emailAddress || null
+    const dbInfo = await getUserDbInfo(clerkUserId, email)
+
+    const supabase = createServiceRoleClient()
+
+    const {
+      searchQuery = "",
+      searchCategory = "all",
+      favoriteFilter = "all",
+      sharedFilter = "all",
+    } = params
+
+    const cleanQuery = searchQuery.trim().replace(/[*%]/g, "")
+    const results: any = { formulas: [], shortcuts: [], notes: [], urls: [], todos: [], sharesInfo: {} }
+
+    let sharedByMeIds: Record<string, string[]> = {
+      formulas: [],
+      shortcuts: [],
+      notes: [],
+      urls: [],
+      todos: [],
+    }
+
+    if (sharedFilter === "shared" || sharedFilter === "unshare") {
+      const { data: shares } = await supabase
+        .from("shared_items")
+        .select("resource_id, resource_type")
+        .in("owner_id", dbInfo.userIds)
+
+      if (shares) {
+        shares.forEach((s) => {
+          if (sharedByMeIds[s.resource_type]) {
+            sharedByMeIds[s.resource_type].push(s.resource_id)
+          }
+        })
+      }
+    }
+
+    const categories = ["formulas", "shortcuts", "notes", "urls", "todos"]
+    const categoriesToFetch = searchCategory === "all" || searchCategory === "new"
+      ? categories
+      : categories.includes(searchCategory)
+      ? [searchCategory]
+      : []
+
+    await Promise.all(
+      categoriesToFetch.map(async (table) => {
+        let query = supabase
+          .from(table)
+          .select("*")
+          .in("user_id", dbInfo.userIds)
+          .neq("is_deleted", true)
+
+        if (cleanQuery) {
+          query = query.or(`title.ilike.*${cleanQuery}*,description.ilike.*${cleanQuery}*`)
+        }
+
+        if (favoriteFilter === "favorites") {
+          query = query.eq("is_favorite", true)
+        } else if (favoriteFilter === "unfavorites") {
+          query = query.eq("is_favorite", false)
+        }
+
+        if (sharedFilter === "shared") {
+          query = query.in("id", sharedByMeIds[table] || [])
+        } else if (sharedFilter === "unshare") {
+          const sharedIds = sharedByMeIds[table] || []
+          if (sharedIds.length > 0) {
+            query = query.not("id", "in", `(${sharedIds.join(",")})`)
+          }
+        } else if (sharedFilter === "received") {
+          query = query.eq("id", "00000000-0000-0000-0000-000000000000")
+        }
+
+        const limitCount = searchCategory === "new" ? 5 : 50
+        const { data: owned } = await query.order("created_at", { ascending: false }).limit(limitCount)
+
+        let shared: any[] = []
+        if (sharedFilter !== "shared" && sharedFilter !== "unshare") {
+          const { data: sharedItems } = await supabase
+            .from("shared_items")
+            .select("resource_id, permission, created_at")
+            .in("shared_with_id", dbInfo.userIds)
+            .eq("resource_type", table)
+
+          if (sharedItems && sharedItems.length > 0) {
+            const ids = sharedItems.map((s) => s.resource_id)
+            let sharedQuery = supabase.from(table).select("*").in("id", ids).neq("is_deleted", true)
+            if (cleanQuery) {
+              sharedQuery = sharedQuery.or(`title.ilike.*${cleanQuery}*,description.ilike.*${cleanQuery}*`)
+            }
+            if (favoriteFilter === "favorites") sharedQuery = sharedQuery.eq("is_favorite", true)
+            else if (favoriteFilter === "unfavorites") sharedQuery = sharedQuery.eq("is_favorite", false)
+            const { data } = await sharedQuery
+            shared = (data || []).map((item) => ({
+              ...item,
+              shared_permission: sharedItems.find((s) => s.resource_id === item.id)?.permission,
+              received_at: sharedItems.find((s) => s.resource_id === item.id)?.created_at,
+            }))
+          }
+        }
+
+        const combined = [...(owned || []), ...shared].sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        )
+        results[table] = combined.slice(0, limitCount)
+      })
+    )
+
+    const allOwnedIds: string[] = []
+    Object.keys(results).forEach((cat) => {
+      if (Array.isArray(results[cat])) {
+        results[cat].forEach((item: any) => {
+          if (item.id) allOwnedIds.push(item.id)
+        })
+      }
+    })
+
+    if (allOwnedIds.length > 0) {
+      const { data: sharesInfoData } = await supabase
+        .from("shared_items")
+        .select("resource_id, shared_with_id")
+        .in("resource_id", allOwnedIds)
+
+      if (sharesInfoData) {
+        const sharesInfo: Record<string, string[]> = {}
+        sharesInfoData.forEach((s) => {
+          if (!sharesInfo[s.resource_id]) sharesInfo[s.resource_id] = []
+          sharesInfo[s.resource_id].push(s.shared_with_id)
+        })
+        results.sharesInfo = sharesInfo
+      }
+    }
+
+    return { data: results, error: null }
+  } catch (err: any) {
+    console.error("getDashboardItemsAction error:", err)
+    return { data: null, error: err.message || "Failed to fetch dashboard items" }
+  }
+}
+
+
 

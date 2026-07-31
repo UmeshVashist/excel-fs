@@ -24,6 +24,8 @@ import { UrlForm } from "@/components/url-form"
 import { TodoForm } from "@/components/todo-form"
 import { Todo } from "@/types/todo"
 import { ShareModal } from "@/components/share-modal"
+import { getDashboardItemsAction } from "@/lib/item-actions"
+
 
 interface DashboardClientProps {
   userId: string
@@ -82,318 +84,25 @@ export function DashboardClient({
     if (!isManual && searchKey === lastSearchKey.current) return
     lastSearchKey.current = searchKey
 
-    // We search if there's a query OR if a specific category is selected (not "all") OR if it's a manual search trigger OR if any filter is active
-    if (!isManual && !searchQuery.trim() && searchCategory === "all" && favoriteFilter === "all" && sharedFilter === "all") {
-      setSearchResults({ formulas: [], shortcuts: [], notes: [], urls: [], todos: [], sharesInfo: {} })
-      return
-    }
-
     setIsLoading(true)
-    
-    // Add a small delay to ensure the searching animation is visible
-    await new Promise(resolve => setTimeout(resolve, 1000))
 
-    const results: any = { formulas: [], shortcuts: [], notes: [], urls: [], todos: [], sharesInfo: {} }
+    try {
+      const res = await getDashboardItemsAction({
+        searchQuery,
+        searchCategory,
+        favoriteFilter,
+        sharedFilter,
+      })
 
-    let sharedByMeIds: Record<string, string[]> = {
-      formulas: [],
-      shortcuts: [],
-      notes: [],
-      urls: [],
-      todos: []
+      if (res.data) {
+        setSearchResults(res.data)
+      }
+    } catch (err) {
+      console.error("Dashboard update error:", err)
+    } finally {
+      setIsLoading(false)
+      setHasSearched(true)
     }
-
-    if (sharedFilter === "shared" || sharedFilter === "unshare") {
-      const { data: shares } = await supabase
-        .from("shared_items")
-        .select("resource_id, resource_type")
-        .in("owner_id", targetUserIds)
-      
-      if (shares) {
-        shares.forEach(s => {
-          if (sharedByMeIds[s.resource_type]) {
-            sharedByMeIds[s.resource_type].push(s.resource_id)
-          }
-        })
-      }
-    }
-
-    const applyFilters = (query: any, type: string) => {
-      if (favoriteFilter === "favorites") {
-        query = query.eq("is_favorite", true)
-      } else if (favoriteFilter === "unfavorites") {
-        query = query.eq("is_favorite", false)
-      }
-      
-      if (sharedFilter === "shared") {
-        // Items shared BY me
-        query = query.in("id", sharedByMeIds[type] || [])
-      } else if (sharedFilter === "unshare") {
-        // Items NOT shared by me
-        const sharedIds = sharedByMeIds[type] || []
-        if (sharedIds.length > 0) {
-          query = query.not("id", "in", `(${sharedIds.join(",")})`)
-        }
-      } else if (sharedFilter === "received") {
-        // Items shared WITH me - force empty for owned query
-        return query.eq("id", "00000000-0000-0000-0000-000000000000")
-      }
-      return query
-    }
-
-    const cleanQuery = searchQuery.trim().replace(/[*%]/g, "")
-
-    // Search based on category selection
-    if (searchCategory === "new") {
-      // Fetch only recently created items across all categories
-      const fetchRecent = async (table: string) => {
-        const { data } = await fetchItemsForUser(supabase, table, targetUserIds, {
-          limit: 5,
-          searchQuery: cleanQuery,
-          favoriteFilter,
-        })
-        return data || []
-      }
-
-      const [formulas, shortcuts, notes, urls, todos] = await Promise.all([
-        fetchRecent("formulas"),
-        fetchRecent("shortcuts"),
-        fetchRecent("notes"),
-        fetchRecent("urls"),
-        fetchRecent("todos")
-      ])
-
-      results.formulas = formulas
-      results.shortcuts = shortcuts
-      results.notes = notes
-      results.urls = urls
-      results.todos = todos
-    } else {
-      if (searchCategory === "all" || searchCategory === "formulas") {
-        let query = supabase
-          .from("formulas")
-          .select("*")
-          .in("user_id", targetUserIds)
-          .neq("is_deleted", true)
-        
-        if (cleanQuery) {
-          query = query.or(`title.ilike.*${cleanQuery}*,description.ilike.*${cleanQuery}*`)
-        }
-        
-        query = applyFilters(query, "formulas")
-        const { data: owned } = await query.limit(5)
-
-        // Fetch shared
-        let shared: any[] = []
-        if (sharedFilter !== "shared" && sharedFilter !== "unshare") {
-          const { data: sharedItems } = await supabase
-            .from("shared_items")
-            .select("resource_id, permission, created_at")
-            .in("shared_with_id", targetUserIds)
-            .eq("resource_type", "formulas")
-          
-          if (sharedItems && sharedItems.length > 0) {
-            const ids = sharedItems.map(s => s.resource_id)
-            let sharedQuery = supabase.from("formulas").select("*").in("id", ids).neq("is_deleted", true)
-            if (cleanQuery) {
-              sharedQuery = sharedQuery.or(`title.ilike.*${cleanQuery}*,description.ilike.*${cleanQuery}*`)
-            }
-            if (favoriteFilter === "favorites") sharedQuery = sharedQuery.eq("is_favorite", true)
-            else if (favoriteFilter === "unfavorites") sharedQuery = sharedQuery.eq("is_favorite", false)
-            const { data } = await sharedQuery
-            shared = (data || []).map(f => ({
-              ...f,
-              shared_permission: sharedItems.find(s => s.resource_id === f.id)?.permission,
-              received_at: sharedItems.find(s => s.resource_id === f.id)?.created_at
-            }))
-          }
-        }
-        
-        results.formulas = [...(owned || []), ...shared].slice(0, 5)
-      }
-
-      if (searchCategory === "all" || searchCategory === "shortcuts") {
-        let query = supabase
-          .from("shortcuts")
-          .select("*")
-          .in("user_id", targetUserIds)
-          .neq("is_deleted", true)
-        
-        if (cleanQuery) {
-          query = query.or(`title.ilike.*${cleanQuery}*,description.ilike.*${cleanQuery}*`)
-        }
-        
-        query = applyFilters(query, "shortcuts")
-        const { data: owned } = await query.limit(5)
-
-        // Fetch shared
-        let shared: any[] = []
-        if (sharedFilter !== "shared" && sharedFilter !== "unshare") {
-          const { data: sharedItems } = await supabase
-            .from("shared_items")
-            .select("resource_id, permission, created_at")
-            .in("shared_with_id", targetUserIds)
-            .eq("resource_type", "shortcuts")
-          
-          if (sharedItems && sharedItems.length > 0) {
-            const ids = sharedItems.map(s => s.resource_id)
-            let sharedQuery = supabase.from("shortcuts").select("*").in("id", ids).neq("is_deleted", true)
-            if (cleanQuery) {
-              sharedQuery = sharedQuery.or(`title.ilike.*${cleanQuery}*,description.ilike.*${cleanQuery}*`)
-            }
-            if (favoriteFilter === "favorites") sharedQuery = sharedQuery.eq("is_favorite", true)
-            else if (favoriteFilter === "unfavorites") sharedQuery = sharedQuery.eq("is_favorite", false)
-            const { data } = await sharedQuery
-            shared = (data || []).map(s => ({
-              ...s,
-              shared_permission: sharedItems.find(item => item.resource_id === s.id)?.permission,
-              received_at: sharedItems.find(item => item.resource_id === s.id)?.created_at
-            }))
-          }
-        }
-        
-        results.shortcuts = [...(owned || []), ...shared].slice(0, 5)
-      }
-
-      if (searchCategory === "all" || searchCategory === "notes") {
-        let query = supabase
-          .from("notes")
-          .select("*")
-          .in("user_id", targetUserIds)
-          .neq("is_deleted", true)
-        
-        if (cleanQuery) {
-          query = query.or(`title.ilike.*${cleanQuery}*,description.ilike.*${cleanQuery}*`)
-        }
-        
-        query = applyFilters(query, "notes")
-        const { data: owned } = await query.limit(5)
-
-        // Fetch shared
-        let shared: any[] = []
-        if (sharedFilter !== "shared" && sharedFilter !== "unshare") {
-          const { data: sharedItems } = await supabase
-            .from("shared_items")
-            .select("resource_id, permission, created_at")
-            .in("shared_with_id", targetUserIds)
-            .eq("resource_type", "notes")
-          
-          if (sharedItems && sharedItems.length > 0) {
-            const ids = sharedItems.map(s => s.resource_id)
-            let sharedQuery = supabase.from("notes").select("*").in("id", ids).neq("is_deleted", true)
-            if (cleanQuery) {
-              sharedQuery = sharedQuery.or(`title.ilike.*${cleanQuery}*,description.ilike.*${cleanQuery}*`)
-            }
-            if (favoriteFilter === "favorites") sharedQuery = sharedQuery.eq("is_favorite", true)
-            else if (favoriteFilter === "unfavorites") sharedQuery = sharedQuery.eq("is_favorite", false)
-            const { data } = await sharedQuery
-            shared = (data || []).map(n => ({
-              ...n,
-              shared_permission: sharedItems.find(item => item.resource_id === n.id)?.permission,
-              received_at: sharedItems.find(item => item.resource_id === n.id)?.created_at
-            }))
-          }
-        }
-        
-        results.notes = [...(owned || []), ...shared].slice(0, 5)
-      }
-
-      if (searchCategory === "all" || searchCategory === "urls") {
-        let query = supabase
-          .from("urls")
-          .select("*")
-          .in("user_id", targetUserIds)
-          .neq("is_deleted", true)
-        
-        if (cleanQuery) {
-          query = query.or(`title.ilike.*${cleanQuery}*,description.ilike.*${cleanQuery}*,url.ilike.*${cleanQuery}*`)
-        }
-        
-        query = applyFilters(query, "urls")
-        const { data: owned } = await query.limit(5)
-
-        // Fetch shared
-        let shared: any[] = []
-        if (sharedFilter !== "shared" && sharedFilter !== "unshare") {
-          const { data: sharedItems } = await supabase
-            .from("shared_items")
-            .select("resource_id, permission, created_at")
-            .in("shared_with_id", targetUserIds)
-            .eq("resource_type", "urls")
-          
-          if (sharedItems && sharedItems.length > 0) {
-            const ids = sharedItems.map(s => s.resource_id)
-            let sharedQuery = supabase.from("urls").select("*").in("id", ids).neq("is_deleted", true)
-            if (cleanQuery) {
-              sharedQuery = sharedQuery.or(`title.ilike.*${cleanQuery}*,description.ilike.*${cleanQuery}*,url.ilike.*${cleanQuery}*`)
-            }
-            if (favoriteFilter === "favorites") sharedQuery = sharedQuery.eq("is_favorite", true)
-            else if (favoriteFilter === "unfavorites") sharedQuery = sharedQuery.eq("is_favorite", false)
-            const { data } = await sharedQuery
-            shared = (data || []).map(u => ({
-              ...u,
-              shared_permission: sharedItems.find(item => item.resource_id === u.id)?.permission,
-              received_at: sharedItems.find(item => item.resource_id === u.id)?.created_at
-            }))
-          }
-        }
-        
-        results.urls = [...(owned || []), ...shared].slice(0, 5)
-      }
-
-      if (searchCategory === "all" || searchCategory === "todos") {
-        let query = supabase
-          .from("todos")
-          .select("*")
-          .in("user_id", targetUserIds)
-          .neq("is_deleted", true)
-        
-        if (cleanQuery) {
-          query = query.or(`title.ilike.*${cleanQuery}*,description.ilike.*${cleanQuery}*`)
-        }
-        
-        query = applyFilters(query, "todos")
-        const { data: owned } = await query.limit(5)
-
-        // Fetch shared
-        let shared: any[] = []
-        if (sharedFilter !== "shared" && sharedFilter !== "unshare") {
-          const { data: sharedItems } = await supabase
-            .from("shared_items")
-            .select("resource_id, permission, created_at")
-            .in("shared_with_id", targetUserIds)
-            .eq("resource_type", "todos")
-          
-          if (sharedItems && sharedItems.length > 0) {
-            const ids = sharedItems.map(s => s.resource_id)
-            let sharedQuery = supabase.from("todos").select("*").in("id", ids).neq("is_deleted", true)
-            if (cleanQuery) {
-              sharedQuery = sharedQuery.or(`title.ilike.*${cleanQuery}*,description.ilike.*${cleanQuery}*`)
-            }
-            if (favoriteFilter === "favorites") sharedQuery = sharedQuery.eq("is_favorite", true)
-            else if (favoriteFilter === "unfavorites") sharedQuery = sharedQuery.eq("is_favorite", false)
-            const { data } = await sharedQuery
-            shared = (data || []).map(t => ({
-              ...t,
-              shared_permission: sharedItems.find(item => item.resource_id === t.id)?.permission,
-              received_at: sharedItems.find(item => item.resource_id === t.id)?.created_at
-            }))
-          }
-        }
-        
-        results.todos = [...(owned || []), ...shared].slice(0, 5)
-
-        // Fetch shares info for todos
-        const ownedIds = (owned || []).map(t => t.id)
-        if (ownedIds.length > 0) {
-          results.sharesInfo = await getBatchSharedWith(ownedIds, "todos")
-        }
-      }
-    }
-
-    setSearchResults(results)
-    setIsLoading(false)
-    setHasSearched(true)
   }
 
   const handleEdit = (type: string, data: any) => {
@@ -405,7 +114,7 @@ export function DashboardClient({
     setIsFormOpen(open)
     if (!open) {
       setEditingItem(null)
-      handleUpdate() // Refresh data without full page reload
+      handleUpdate(true) // Refresh data without full page reload
     }
   }
 
@@ -439,7 +148,6 @@ export function DashboardClient({
         .eq(field, userId)
         .maybeSingle()
 
-      
       if (profile && profile.password_set === false) {
         setIsSetupPopupOpen(true)
       }
@@ -449,17 +157,13 @@ export function DashboardClient({
   }, [searchParams, supabase, userId])
 
   useEffect(() => {
-    if (!searchQuery.trim() && searchCategory === "all" && favoriteFilter === "all" && sharedFilter === "all") {
-      setSearchResults({ formulas: [], shortcuts: [], notes: [], urls: [], todos: [], sharesInfo: {} })
-      return
-    }
-    
     const timer = setTimeout(() => {
       handleUpdate()
-    }, 500)
+    }, 300)
 
     return () => clearTimeout(timer)
   }, [searchQuery, searchCategory, favoriteFilter, sharedFilter])
+
 
 
   const handleClear = () => {

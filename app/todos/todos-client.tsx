@@ -41,11 +41,12 @@ export function TodosClient({
     async () => {
       try {
         // Fetch only owned todos
+        const filterOr = `user_id.eq.${userId},clerk_user_id.eq.${user?.clerk_user_id || userId}`
         const { data: ownedData, error: ownedError } = await supabase
           .from("todos")
           .select("*")
-          .eq("user_id", userId)
-          .eq("is_deleted", false)
+          .or(filterOr)
+          .neq("is_deleted", true)
         
         if (ownedError) {
           console.error("Error fetching owned todos:", ownedError)

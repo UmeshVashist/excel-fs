@@ -9,6 +9,7 @@ import { FormulaList } from "@/components/formula-list"
 import { FormulaForm } from "@/components/formula-form"
 import { createClient } from "@/lib/supabase/client"
 import { getBatchSharedWith } from "@/lib/sharing-actions"
+import { deleteItemAction, removeSharedItemAction, toggleFavoriteAction } from "@/lib/item-actions"
 import { ShareModal } from "@/components/share-modal"
 
 interface Formula {
@@ -79,11 +80,12 @@ export function FormulasClient({
   const loadFormulas = async () => {
     try {
       // Fetch only owned formulas
+      const filterOr = `user_id.eq.${userId},clerk_user_id.eq.${user?.clerk_user_id || userId}`
       const { data: ownedData } = await supabase
         .from("formulas")
         .select("*")
-        .eq("user_id", userId)
-        .eq("is_deleted", false)
+        .or(filterOr)
+        .neq("is_deleted", true)
         .order("created_at", { ascending: false })
 
       setFormulas(ownedData || [])
@@ -146,10 +148,8 @@ export function FormulasClient({
   }
 
   const handleToggleFavorite = async (id: string, currentFavorite: boolean) => {
-    const { error } = await supabase.from("formulas").update({ is_favorite: !currentFavorite }).eq("id", id)
-    if (!error) {
-      loadFormulas()
-    }
+    await toggleFavoriteAction("formulas", id, currentFavorite)
+    loadFormulas()
   }
 
   const handleDelete = async (id: string, ownerId: string) => {
@@ -157,33 +157,21 @@ export function FormulasClient({
 
     if (isOwner) {
       if (confirm("Are you sure you want to move this formula to Recycle Bin?")) {
-        const { error } = await supabase
-          .from("formulas")
-          .update({ 
-            is_deleted: true, 
-            deleted_at: new Date().toISOString() 
-          })
-          .eq("id", id)
-        
-        if (!error) {
+        const res = await deleteItemAction("formulas", id)
+        if (res.success) {
           loadFormulas()
         }
       }
     } else {
       if (confirm("This item was shared with you. Are you sure you want to remove it from your list?")) {
-        const { error } = await supabase
-          .from("shared_items")
-          .delete()
-          .eq("resource_id", id)
-          .eq("shared_with_id", userId)
-          .eq("resource_type", "formulas")
-        
-        if (!error) {
+        const res = await removeSharedItemAction(id, "formulas")
+        if (res.success) {
           loadFormulas()
         }
       }
     }
   }
+
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6">

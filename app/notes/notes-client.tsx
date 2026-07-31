@@ -9,6 +9,7 @@ import { NotesList } from "@/components/notes-list"
 import { NoteForm } from "@/components/note-form"
 import { createClient } from "@/lib/supabase/client"
 import { getBatchSharedWith } from "@/lib/sharing-actions"
+import { deleteItemAction, removeSharedItemAction, toggleFavoriteAction } from "@/lib/item-actions"
 import { ShareModal } from "@/components/share-modal"
 
 interface Note {
@@ -78,11 +79,12 @@ export function NotesClient({
   const loadNotes = async () => {
     try {
       // Fetch only owned notes
+      const filterOr = `user_id.eq.${userId},clerk_user_id.eq.${user?.clerk_user_id || userId}`
       const { data: ownedData } = await supabase
         .from("notes")
         .select("*")
-        .eq("user_id", userId)
-        .eq("is_deleted", false)
+        .or(filterOr)
+        .neq("is_deleted", true)
         .order("created_at", { ascending: false })
 
       setNotes(ownedData || [])
@@ -138,10 +140,8 @@ export function NotesClient({
   }
 
   const handleToggleFavorite = async (id: string, currentFavorite: boolean) => {
-    const { error } = await supabase.from("notes").update({ is_favorite: !currentFavorite }).eq("id", id)
-    if (!error) {
-      loadNotes()
-    }
+    await toggleFavoriteAction("notes", id, currentFavorite)
+    loadNotes()
   }
 
   const handleDelete = async (id: string, ownerId: string) => {
@@ -149,33 +149,21 @@ export function NotesClient({
 
     if (isOwner) {
       if (confirm("Are you sure you want to move this note to Recycle Bin?")) {
-        const { error } = await supabase
-          .from("notes")
-          .update({ 
-            is_deleted: true, 
-            deleted_at: new Date().toISOString() 
-          })
-          .eq("id", id)
-        
-        if (!error) {
+        const res = await deleteItemAction("notes", id)
+        if (res.success) {
           loadNotes()
         }
       }
     } else {
       if (confirm("This item was shared with you. Are you sure you want to remove it from your list?")) {
-        const { error } = await supabase
-          .from("shared_items")
-          .delete()
-          .eq("resource_id", id)
-          .eq("shared_with_id", userId)
-          .eq("resource_type", "notes")
-        
-        if (!error) {
+        const res = await removeSharedItemAction(id, "notes")
+        if (res.success) {
           loadNotes()
         }
       }
     }
   }
+
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6">

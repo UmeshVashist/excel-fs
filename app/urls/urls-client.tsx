@@ -9,6 +9,7 @@ import { UrlsList } from "@/components/urls-list"
 import { UrlForm } from "@/components/url-form"
 import { createClient } from "@/lib/supabase/client"
 import { getBatchSharedWith } from "@/lib/sharing-actions"
+import { deleteItemAction, removeSharedItemAction, toggleFavoriteAction } from "@/lib/item-actions"
 import { ShareModal } from "@/components/share-modal"
 
 interface Url {
@@ -81,11 +82,12 @@ export function UrlsClient({
   const loadUrls = async () => {
     try {
       // Fetch only owned urls
+      const filterOr = `user_id.eq.${userId},clerk_user_id.eq.${user?.clerk_user_id || userId}`
       const { data: ownedData } = await supabase
         .from("urls")
         .select("*")
-        .eq("user_id", userId)
-        .eq("is_deleted", false)
+        .or(filterOr)
+        .neq("is_deleted", true)
         .order("created_at", { ascending: false })
 
       setUrls(ownedData || [])
@@ -144,10 +146,8 @@ export function UrlsClient({
   }
 
   const handleToggleFavorite = async (id: string, currentFavorite: boolean) => {
-    const { error } = await supabase.from("urls").update({ is_favorite: !currentFavorite }).eq("id", id)
-    if (!error) {
-      loadUrls()
-    }
+    await toggleFavoriteAction("urls", id, currentFavorite)
+    loadUrls()
   }
 
   const handleDelete = async (id: string, ownerId: string) => {
@@ -155,33 +155,21 @@ export function UrlsClient({
 
     if (isOwner) {
       if (confirm("Are you sure you want to move this URL to Recycle Bin?")) {
-        const { error } = await supabase
-          .from("urls")
-          .update({ 
-            is_deleted: true, 
-            deleted_at: new Date().toISOString() 
-          })
-          .eq("id", id)
-        
-        if (!error) {
+        const res = await deleteItemAction("urls", id)
+        if (res.success) {
           loadUrls()
         }
       }
     } else {
       if (confirm("This item was shared with you. Are you sure you want to remove it from your list?")) {
-        const { error } = await supabase
-          .from("shared_items")
-          .delete()
-          .eq("resource_id", id)
-          .eq("shared_with_id", userId)
-          .eq("resource_type", "urls")
-        
-        if (!error) {
+        const res = await removeSharedItemAction(id, "urls")
+        if (res.success) {
           loadUrls()
         }
       }
     }
   }
+
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6">

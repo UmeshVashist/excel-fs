@@ -9,6 +9,7 @@ import { ShortcutList } from "@/components/shortcut-list"
 import { ShortcutForm } from "@/components/shortcut-form"
 import { createClient } from "@/lib/supabase/client"
 import { getBatchSharedWith } from "@/lib/sharing-actions"
+import { deleteItemAction, removeSharedItemAction, toggleFavoriteAction } from "@/lib/item-actions"
 import { ShareModal } from "@/components/share-modal"
 
 interface Shortcut {
@@ -76,11 +77,12 @@ export function ShortcutsClient({
   const loadShortcuts = async () => {
     try {
       // Fetch only owned shortcuts
+      const filterOr = `user_id.eq.${userId},clerk_user_id.eq.${user?.clerk_user_id || userId}`
       const { data: ownedData } = await supabase
         .from("shortcuts")
         .select("*")
-        .eq("user_id", userId)
-        .eq("is_deleted", false)
+        .or(filterOr)
+        .neq("is_deleted", true)
         .order("created_at", { ascending: false })
 
       setShortcuts(ownedData || [])
@@ -138,10 +140,8 @@ export function ShortcutsClient({
   }
 
   const handleToggleFavorite = async (id: string, currentFavorite: boolean) => {
-    const { error } = await supabase.from("shortcuts").update({ is_favorite: !currentFavorite }).eq("id", id)
-    if (!error) {
-      loadShortcuts()
-    }
+    await toggleFavoriteAction("shortcuts", id, currentFavorite)
+    loadShortcuts()
   }
 
   const handleDelete = async (id: string, ownerId: string) => {
@@ -149,33 +149,21 @@ export function ShortcutsClient({
 
     if (isOwner) {
       if (confirm("Are you sure you want to move this shortcut to Recycle Bin?")) {
-        const { error } = await supabase
-          .from("shortcuts")
-          .update({ 
-            is_deleted: true, 
-            deleted_at: new Date().toISOString() 
-          })
-          .eq("id", id)
-        
-        if (!error) {
+        const res = await deleteItemAction("shortcuts", id)
+        if (res.success) {
           loadShortcuts()
         }
       }
     } else {
-      if (confirm("This item was shared with you. Are you sure you want to remove it from your list?Check shared items table if items are no longer needed.")) {
-        const { error } = await supabase
-          .from("shared_items")
-          .delete()
-          .eq("resource_id", id)
-          .eq("shared_with_id", userId)
-          .eq("resource_type", "shortcuts")
-        
-        if (!error) {
+      if (confirm("This item was shared with you. Are you sure you want to remove it from your list?")) {
+        const res = await removeSharedItemAction(id, "shortcuts")
+        if (res.success) {
           loadShortcuts()
         }
       }
     }
   }
+
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6">

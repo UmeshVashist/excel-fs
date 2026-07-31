@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react"
 import { Star, Edit2, Trash2, Copy, Check, Share2, History, Users, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
-import { deleteItemAction, toggleFavoriteAction } from "@/lib/item-actions"
+import { deleteItemAction, toggleFavoriteAction, removeSharedItemAction } from "@/lib/item-actions"
 import { useRouter } from "next/navigation"
 import { cn, copyToClipboard } from "@/lib/utils"
 import { ShareModal } from "./share-modal"
@@ -65,8 +65,15 @@ export function TodoItem({
   }
 
   const handleDelete = async () => {
-    if (confirm("Are you sure you want to move this todo to Recycle Bin?")) {
-      await deleteItemAction("todos", todo.id)
+    const confirmMsg = isOwner 
+      ? "Are you sure you want to move this todo to Recycle Bin?" 
+      : "This todo was shared with you. Are you sure you want to remove it from your list?"
+    if (confirm(confirmMsg)) {
+      if (isOwner) {
+        await deleteItemAction("todos", todo.id)
+      } else {
+        await removeSharedItemAction(todo.id, "todos")
+      }
       onUpdate()
     }
   }

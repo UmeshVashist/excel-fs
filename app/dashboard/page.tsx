@@ -54,7 +54,7 @@ export default async function DashboardPage() {
           .from(table)
           .select("*", { count: "exact", head: true })
           .in("id", ids)
-          .eq("is_deleted", false)
+          .neq("is_deleted", true)
         return count || 0
       })
     )

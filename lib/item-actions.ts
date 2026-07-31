@@ -159,3 +159,34 @@ export async function toggleFavoriteAction(table: string, id: string, currentFav
     return { error: err.message || "Failed to toggle favorite" }
   }
 }
+
+export async function removeSharedItemAction(resourceId: string, resourceType: string) {
+  try {
+    const { userId: clerkUserId } = await auth()
+    if (!clerkUserId) return { error: "Unauthorized" }
+
+    const supabase = createServiceRoleClient()
+    const dbInfo = await getUserDbInfo(clerkUserId)
+
+    const { error } = await supabase
+      .from("shared_items")
+      .delete()
+      .eq("resource_id", resourceId)
+      .eq("resource_type", resourceType)
+      .or(`shared_with_id.eq.${dbInfo.uuid},shared_with_id.eq.${dbInfo.clerkUserId}`)
+
+    if (error) {
+      console.error(`Remove shared item error on ${resourceType}:`, error)
+      return { error: error.message }
+    }
+
+    revalidatePath(`/${resourceType}`)
+    revalidatePath("/shared")
+    revalidatePath("/dashboard")
+    return { success: true }
+  } catch (err: any) {
+    console.error(`removeSharedItemAction error on ${resourceType}:`, err)
+    return { error: err.message || "Failed to remove shared item" }
+  }
+}
+

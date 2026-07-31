@@ -32,11 +32,13 @@ export default function SettingsPage() {
       setEmail(clerkUser.primaryEmailAddress?.emailAddress || "")
       
       const loadProfile = async () => {
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clerkUser.id)
+        const field = isUUID ? "id" : "clerk_user_id"
         const { data: profileData } = await supabase
           .from("profiles")
           .select("username")
-          .eq("id", clerkUser.id)
-          .single()
+          .eq(field, clerkUser.id)
+          .maybeSingle()
 
         if (profileData) {
           setUsername(profileData.username)
@@ -55,9 +57,13 @@ export default function SettingsPage() {
     setMessage(null)
 
     try {
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clerkUser.id)
+      const field = isUUID ? "id" : "clerk_user_id"
       const { error: profileError } = await supabase
         .from("profiles")
-        .upsert({ id: clerkUser.id, username, email, updated_at: new Date().toISOString() })
+        .update({ username, email, updated_at: new Date().toISOString() })
+        .eq(field, clerkUser.id)
+
 
       if (profileError) throw profileError
 

@@ -28,8 +28,10 @@ export function LayoutSettingsContent() {
   const loadSettings = async () => {
     try {
       if (!clerkUser) return
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clerkUser.id)
+      const field = isUUID ? "id" : "clerk_user_id"
 
-      const { data, error } = await supabase.from("profiles").select("layout_settings").eq("id", clerkUser.id).single()
+      const { data, error } = await supabase.from("profiles").select("layout_settings").eq(field, clerkUser.id).maybeSingle()
 
       if (error) throw error
 
@@ -53,11 +55,14 @@ export function LayoutSettingsContent() {
       }
 
       const layoutSettings = { theme, sidebar }
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clerkUser.id)
+      const field = isUUID ? "id" : "clerk_user_id"
 
       const { error: updateError } = await supabase
         .from("profiles")
         .update({ layout_settings: layoutSettings })
-        .eq("id", clerkUser.id)
+        .eq(field, clerkUser.id)
+
 
       if (updateError) throw updateError
 

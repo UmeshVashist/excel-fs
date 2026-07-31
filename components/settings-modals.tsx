@@ -240,11 +240,13 @@ export function SettingsModals({ type, open, onOpenChange, user, onUpdate }: Set
     if (user) {
       setEmail(user.email || "")
       const fetchProfile = async () => {
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id)
+        const field = isUUID ? "id" : "clerk_user_id"
         const { data } = await supabase
           .from("profiles")
           .select("username")
-          .eq("id", user.id)
-          .single()
+          .eq(field, user.id)
+          .maybeSingle()
         if (data) setUsername(data.username)
       }
       fetchProfile()
@@ -269,10 +271,13 @@ export function SettingsModals({ type, open, onOpenChange, user, onUpdate }: Set
         })
       } else {
         // Only update username if email hasn't changed
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id)
+        const field = isUUID ? "id" : "clerk_user_id"
         const { error: profileError } = await supabase
           .from("profiles")
           .update({ username, updated_at: new Date().toISOString() })
-          .eq("id", user.id)
+          .eq(field, user.id)
+
 
         if (profileError) throw profileError
         

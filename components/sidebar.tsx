@@ -82,11 +82,14 @@ export function Sidebar({ user }: { user?: any }) {
 
   const fetchProfile = async () => {
     if (currentUserData) {
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentUserData.id)
+      const field = isUUID ? "id" : "clerk_user_id"
       const { data } = await supabase
         .from("profiles")
         .select("username, email, id")
-        .eq("id", currentUserData.id)
-        .single()
+        .eq(field, currentUserData.id)
+        .maybeSingle()
+
       
       if (data) {
         setProfile(data)

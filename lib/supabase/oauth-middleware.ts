@@ -27,11 +27,15 @@ export async function checkOAuthUser() {
   }
 
   // Get user's profile to verify OAuth setup
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id)
+  const field = isUUID ? "id" : "clerk_user_id"
+
   const { data: profile, error } = await supabase
     .from("profiles")
     .select("oauth_provider, password_set, email, username")
-    .eq("id", user.id)
+    .eq(field, user.id)
     .maybeSingle() // Use maybeSingle to avoid PGRST116 error
+
 
   // ❌ Profile not found in database
   if (!profile) {

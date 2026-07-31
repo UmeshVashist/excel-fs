@@ -23,11 +23,13 @@ export function OAuthBadge({ size = "md", showLabel = true }: OAuthBadgeProps) {
         } = await supabase.auth.getUser()
 
         if (user) {
+          const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id)
+          const field = isUUID ? "id" : "clerk_user_id"
           const { data: profile } = await supabase
             .from("profiles")
             .select("oauth_provider")
-            .eq("id", user.id)
-            .single()
+            .eq(field, user.id)
+            .maybeSingle()
 
           setOauthProvider(profile?.oauth_provider || null)
         }

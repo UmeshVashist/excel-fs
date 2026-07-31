@@ -430,11 +430,15 @@ export function DashboardClient({
       }
 
       // Also check if password_set is false for the current user
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)
+      const field = isUUID ? "id" : "clerk_user_id"
+
       const { data: profile } = await supabase
         .from("profiles")
         .select("password_set")
-        .eq("id", userId)
+        .eq(field, userId)
         .maybeSingle()
+
       
       if (profile && profile.password_set === false) {
         setIsSetupPopupOpen(true)

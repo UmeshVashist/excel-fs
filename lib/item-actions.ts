@@ -173,7 +173,8 @@ export async function removeSharedItemAction(resourceId: string, resourceType: s
       .delete()
       .eq("resource_id", resourceId)
       .eq("resource_type", resourceType)
-      .or(`shared_with_id.eq.${dbInfo.uuid},shared_with_id.eq.${dbInfo.clerkUserId}`)
+      .in("shared_with_id", dbInfo.userIds)
+
 
     if (error) {
       console.error(`Remove shared item error on ${resourceType}:`, error)

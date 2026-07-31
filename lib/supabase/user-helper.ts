@@ -81,39 +81,6 @@ export async function fetchItemsForUser(
   const cleanUserIds = Array.from(new Set((userIds || []).filter(Boolean)))
   if (cleanUserIds.length === 0) return { data: [], error: null }
 
-  const idsList = cleanUserIds.join(",")
-  const cleanQuery = extraOptions?.searchQuery?.trim().replace(/[*%]/g, "") || ""
-
-  // 1. Try querying with .or("user_id.in.(...),clerk_user_id.in(...)")
-  try {
-    let query = supabase
-      .from(table)
-      .select("*")
-      .or(`user_id.in.(${idsList}),clerk_user_id.in.(${idsList})`)
-      .neq("is_deleted", true)
-      .order("created_at", { ascending: false })
-
-    if (cleanQuery) {
-      if (table === "urls") {
-        query = query.or(`title.ilike.*${cleanQuery}*,description.ilike.*${cleanQuery}*,url.ilike.*${cleanQuery}*`)
-      } else {
-        query = query.or(`title.ilike.*${cleanQuery}*,description.ilike.*${cleanQuery}*`)
-      }
-    }
-
-    if (extraOptions?.favoriteFilter === "favorites") query = query.eq("is_favorite", true)
-    else if (extraOptions?.favoriteFilter === "unfavorites") query = query.eq("is_favorite", false)
-
-    if (extraOptions?.limit) query = query.limit(extraOptions.limit)
-
-    const { data, error } = await query
-
-    if (!error) return { data: data || [], error: null }
-  } catch (err) {
-    // Ignore and fallback to user_id query
-  }
-
-  // 2. Fallback: Query by user_id column using .in("user_id", cleanUserIds)
   try {
     let query = supabase
       .from(table)
@@ -122,6 +89,7 @@ export async function fetchItemsForUser(
       .neq("is_deleted", true)
       .order("created_at", { ascending: false })
 
+    const cleanQuery = extraOptions?.searchQuery?.trim().replace(/[^a-zA-Z0-9 _-]/g, "") || ""
     if (cleanQuery) {
       if (table === "urls") {
         query = query.or(`title.ilike.*${cleanQuery}*,description.ilike.*${cleanQuery}*,url.ilike.*${cleanQuery}*`)
@@ -146,20 +114,6 @@ export async function countItemsForUser(supabase: any, table: string, userIds: s
   const cleanUserIds = Array.from(new Set((userIds || []).filter(Boolean)))
   if (cleanUserIds.length === 0) return 0
 
-  const idsList = cleanUserIds.join(",")
-
-  try {
-    const { count, error } = await supabase
-      .from(table)
-      .select("*", { count: "exact", head: true })
-      .or(`user_id.in.(${idsList}),clerk_user_id.in.(${idsList})`)
-      .neq("is_deleted", true)
-
-    if (!error && count !== null) return count
-  } catch (err) {
-    // fallback
-  }
-
   try {
     const { count } = await supabase
       .from(table)
@@ -172,5 +126,6 @@ export async function countItemsForUser(supabase: any, table: string, userIds: s
     return 0
   }
 }
+
 
 

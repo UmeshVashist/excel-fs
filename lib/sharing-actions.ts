@@ -242,21 +242,28 @@ export async function getItemHistory(resourceId: string, resourceType: string) {
     const uuidList = userIds.filter((id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))
     const textList = userIds.filter((id) => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))
 
-    const filters: string[] = []
-    if (uuidList.length) filters.push(`id.in.(${uuidList.map((id) => `"${id}"`).join(",")})`)
-    if (textList.length) filters.push(`clerk_user_id.in.(${textList.map((id) => `"${id}"`).join(",")})`)
+    const { data: profilesById } = await supabase
+      .from("profiles")
+      .select("id, clerk_user_id, username, email")
+      .in("id", userIds)
 
-    if (filters.length > 0) {
-      const { data: profiles } = await supabase
+    profilesById?.forEach((p) => {
+      if (p.id) profileMap[p.id] = { username: p.username, email: p.email }
+      if (p.clerk_user_id) profileMap[p.clerk_user_id] = { username: p.username, email: p.email }
+    })
+
+    if (textList.length > 0) {
+      const { data: profilesByClerk } = await supabase
         .from("profiles")
         .select("id, clerk_user_id, username, email")
-        .or(filters.join(","))
+        .in("clerk_user_id", textList)
 
-      profiles?.forEach((p) => {
+      profilesByClerk?.forEach((p) => {
         if (p.id) profileMap[p.id] = { username: p.username, email: p.email }
         if (p.clerk_user_id) profileMap[p.clerk_user_id] = { username: p.username, email: p.email }
       })
     }
+
   }
 
   return historyData.map((item) => ({

@@ -25,10 +25,12 @@ interface Formula {
 export function FormulasClient({
   initialFormulas,
   userId,
+  userIds,
   user,
 }: {
   initialFormulas: Formula[]
   userId: string
+  userIds?: string[]
   user: any
 }) {
   const [formulas, setFormulas] = useState<Formula[]>(initialFormulas)
@@ -44,6 +46,12 @@ export function FormulasClient({
   const [isAutoShareOpen, setIsAutoShareOpen] = useState(false)
 
   const supabase = useMemo(() => createClient(), [])
+
+  const targetUserIds = useMemo(() => {
+    const list = userIds && userIds.length > 0 ? userIds : [userId]
+    if (user?.clerk_user_id && !list.includes(user.clerk_user_id)) list.push(user.clerk_user_id)
+    return Array.from(new Set(list))
+  }, [userId, userIds, user])
 
   // Sync state with props only when data actually changes
   useEffect(() => {
@@ -80,11 +88,10 @@ export function FormulasClient({
   const loadFormulas = async () => {
     try {
       // Fetch only owned formulas
-      const filterOr = `user_id.eq.${userId},clerk_user_id.eq.${user?.clerk_user_id || userId}`
       const { data: ownedData } = await supabase
         .from("formulas")
         .select("*")
-        .or(filterOr)
+        .in("user_id", targetUserIds)
         .neq("is_deleted", true)
         .order("created_at", { ascending: false })
 
@@ -95,6 +102,7 @@ export function FormulasClient({
       }
     }
   }
+
 
   const filteredFormulas = useMemo(() => {
     let result = formulas.filter(f => f.user_id === userId || (f as any).clerk_user_id === userId || !f.user_id)

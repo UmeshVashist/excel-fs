@@ -6,12 +6,14 @@ import { auth } from "@clerk/nextjs/server"
 
 export async function searchUsers(query: string) {
   const supabase = createServiceRoleClient() // Use service role to search all profiles
+  const clean = query.trim().replace(/[*%]/g, "")
 
   const { data: profiles, error } = await supabase
     .from("profiles")
     .select("id, username, email")
-    .or(`username.ilike.%${query}%,email.ilike.%${query}%`)
+    .or(`username.ilike.*${clean}*,email.ilike.*${clean}*`)
     .limit(5)
+
 
   if (error) {
     console.error("Search users error:", error)

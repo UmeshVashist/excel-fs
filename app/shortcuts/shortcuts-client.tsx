@@ -25,10 +25,12 @@ interface Shortcut {
 export function ShortcutsClient({
   initialShortcuts,
   userId,
+  userIds,
   user,
 }: {
   initialShortcuts: Shortcut[]
   userId: string
+  userIds?: string[]
   user: any
 }) {
   const [shortcuts, setShortcuts] = useState<Shortcut[]>(initialShortcuts)
@@ -44,6 +46,12 @@ export function ShortcutsClient({
   const [isAutoShareOpen, setIsAutoShareOpen] = useState(false)
 
   const supabase = useMemo(() => createClient(), [])
+
+  const targetUserIds = useMemo(() => {
+    const list = userIds && userIds.length > 0 ? userIds : [userId]
+    if (user?.clerk_user_id && !list.includes(user.clerk_user_id)) list.push(user.clerk_user_id)
+    return Array.from(new Set(list))
+  }, [userId, userIds, user])
 
   // Sync state with props only when data actually changes
   useEffect(() => {
@@ -77,11 +85,10 @@ export function ShortcutsClient({
   const loadShortcuts = async () => {
     try {
       // Fetch only owned shortcuts
-      const filterOr = `user_id.eq.${userId},clerk_user_id.eq.${user?.clerk_user_id || userId}`
       const { data: ownedData } = await supabase
         .from("shortcuts")
         .select("*")
-        .or(filterOr)
+        .in("user_id", targetUserIds)
         .neq("is_deleted", true)
         .order("created_at", { ascending: false })
 
@@ -92,6 +99,7 @@ export function ShortcutsClient({
       }
     }
   }
+
 
   const filteredShortcuts = useMemo(() => {
     let result = shortcuts.filter(s => s.user_id === userId || (s as any).clerk_user_id === userId || !s.user_id)

@@ -16,14 +16,13 @@ export default async function NotesPage() {
 
   const email = clerkUser?.primaryEmailAddress?.emailAddress || null
   const dbInfo = await getUserDbInfo(userId, email)
-  const filterOr = `user_id.eq.${dbInfo.uuid},clerk_user_id.eq.${dbInfo.clerkUserId}`
 
   const supabase = await createClient()
 
   const { data: notes } = await supabase
     .from("notes")
     .select("*")
-    .or(filterOr)
+    .in("user_id", dbInfo.userIds)
     .neq("is_deleted", true)
     .order("created_at", { ascending: false })
 
@@ -44,7 +43,8 @@ export default async function NotesPage() {
 
   return (
     <Suspense fallback={<LoadingIcon />}>
-      <NotesClient initialNotes={notes || []} userId={dbInfo.uuid} user={user} />
+      <NotesClient initialNotes={notes || []} userId={dbInfo.uuid} userIds={dbInfo.userIds} user={user} />
     </Suspense>
   )
+
 }

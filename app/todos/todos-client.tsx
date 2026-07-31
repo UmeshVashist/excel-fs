@@ -29,24 +29,32 @@ interface Todo {
 export function TodosClient({
   initialTodos,
   userId,
+  userIds,
   user,
 }: {
   initialTodos: Todo[]
   userId: string
+  userIds?: string[]
   user?: any
 }) {
   const supabase = useMemo(() => createClient(), [])
+  const targetUserIds = useMemo(() => {
+    const list = userIds && userIds.length > 0 ? userIds : [userId]
+    if (user?.clerk_user_id && !list.includes(user.clerk_user_id)) list.push(user.clerk_user_id)
+    return Array.from(new Set(list))
+  }, [userId, userIds, user])
+
   const { data, mutate } = useSWR(
     `todos-${userId}`,
     async () => {
       try {
         // Fetch only owned todos
-        const filterOr = `user_id.eq.${userId},clerk_user_id.eq.${user?.clerk_user_id || userId}`
         const { data: ownedData, error: ownedError } = await supabase
           .from("todos")
           .select("*")
-          .or(filterOr)
+          .in("user_id", targetUserIds)
           .neq("is_deleted", true)
+
         
         if (ownedError) {
           console.error("Error fetching owned todos:", ownedError)

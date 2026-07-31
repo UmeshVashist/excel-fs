@@ -16,14 +16,13 @@ export default async function UrlsPage() {
 
   const email = clerkUser?.primaryEmailAddress?.emailAddress || null
   const dbInfo = await getUserDbInfo(userId, email)
-  const filterOr = `user_id.eq.${dbInfo.uuid},clerk_user_id.eq.${dbInfo.clerkUserId}`
 
   const supabase = await createClient()
 
   const { data: urls } = await supabase
     .from("urls")
     .select("*")
-    .or(filterOr)
+    .in("user_id", dbInfo.userIds)
     .neq("is_deleted", true)
     .order("created_at", { ascending: false })
 
@@ -44,7 +43,8 @@ export default async function UrlsPage() {
 
   return (
     <Suspense fallback={<LoadingIcon />}>
-      <UrlsClient initialUrls={urls || []} userId={dbInfo.uuid} user={user} />
+      <UrlsClient initialUrls={urls || []} userId={dbInfo.uuid} userIds={dbInfo.userIds} user={user} />
     </Suspense>
   )
+
 }

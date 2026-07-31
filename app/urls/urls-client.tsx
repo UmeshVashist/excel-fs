@@ -26,10 +26,12 @@ interface Url {
 export function UrlsClient({
   initialUrls,
   userId,
+  userIds,
   user,
 }: {
   initialUrls: Url[]
   userId: string
+  userIds?: string[]
   user: any
 }) {
   const [urls, setUrls] = useState<Url[]>(initialUrls)
@@ -45,6 +47,12 @@ export function UrlsClient({
   const [isAutoShareOpen, setIsAutoShareOpen] = useState(false)
 
   const supabase = useMemo(() => createClient(), [])
+
+  const targetUserIds = useMemo(() => {
+    const list = userIds && userIds.length > 0 ? userIds : [userId]
+    if (user?.clerk_user_id && !list.includes(user.clerk_user_id)) list.push(user.clerk_user_id)
+    return Array.from(new Set(list))
+  }, [userId, userIds, user])
 
   // Sync state with props only when data actually changes
   useEffect(() => {
@@ -82,11 +90,10 @@ export function UrlsClient({
   const loadUrls = async () => {
     try {
       // Fetch only owned urls
-      const filterOr = `user_id.eq.${userId},clerk_user_id.eq.${user?.clerk_user_id || userId}`
       const { data: ownedData } = await supabase
         .from("urls")
         .select("*")
-        .or(filterOr)
+        .in("user_id", targetUserIds)
         .neq("is_deleted", true)
         .order("created_at", { ascending: false })
 

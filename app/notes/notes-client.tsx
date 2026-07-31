@@ -24,10 +24,12 @@ interface Note {
 export function NotesClient({
   initialNotes,
   userId,
+  userIds,
   user,
 }: {
   initialNotes: Note[]
   userId: string
+  userIds?: string[]
   user: any
 }) {
   const [notes, setNotes] = useState<Note[]>(initialNotes)
@@ -43,6 +45,12 @@ export function NotesClient({
   const [isAutoShareOpen, setIsAutoShareOpen] = useState(false)
 
   const supabase = useMemo(() => createClient(), [])
+
+  const targetUserIds = useMemo(() => {
+    const list = userIds && userIds.length > 0 ? userIds : [userId]
+    if (user?.clerk_user_id && !list.includes(user.clerk_user_id)) list.push(user.clerk_user_id)
+    return Array.from(new Set(list))
+  }, [userId, userIds, user])
 
   // Sync state with props only when data actually changes
   useEffect(() => {
@@ -79,11 +87,10 @@ export function NotesClient({
   const loadNotes = async () => {
     try {
       // Fetch only owned notes
-      const filterOr = `user_id.eq.${userId},clerk_user_id.eq.${user?.clerk_user_id || userId}`
       const { data: ownedData } = await supabase
         .from("notes")
         .select("*")
-        .or(filterOr)
+        .in("user_id", targetUserIds)
         .neq("is_deleted", true)
         .order("created_at", { ascending: false })
 
@@ -92,6 +99,7 @@ export function NotesClient({
       console.error("Error loading notes:", error)
     }
   }
+
 
   const filteredNotes = useMemo(() => {
     let result = notes.filter(n => n.user_id === userId || (n as any).clerk_user_id === userId || !n.user_id)

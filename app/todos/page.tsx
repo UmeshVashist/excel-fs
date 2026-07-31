@@ -14,14 +14,13 @@ export default async function TodosPage() {
 
   const email = clerkUser?.primaryEmailAddress?.emailAddress || null
   const dbInfo = await getUserDbInfo(userId, email)
-  const filterOr = `user_id.eq.${dbInfo.uuid},clerk_user_id.eq.${dbInfo.clerkUserId}`
 
   const supabase = await createClient()
 
   const { data: todos } = await supabase
     .from("todos")
     .select("*")
-    .or(filterOr)
+    .in("user_id", dbInfo.userIds)
     .neq("is_deleted", true)
     .order("created_at", { ascending: false })
 
@@ -40,5 +39,6 @@ export default async function TodosPage() {
       }
     : { id: dbInfo.uuid, clerk_user_id: userId, email: null, user_metadata: {} }
 
-  return <TodosClient initialTodos={todos || []} userId={dbInfo.uuid} user={user} />
+  return <TodosClient initialTodos={todos || []} userId={dbInfo.uuid} userIds={dbInfo.userIds} user={user} />
+
 }

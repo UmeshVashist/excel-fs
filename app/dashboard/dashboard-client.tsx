@@ -26,6 +26,7 @@ import { ShareModal } from "@/components/share-modal"
 
 interface DashboardClientProps {
   userId: string
+  userIds?: string[]
   initialFormulasCount: number
   initialShortcutsCount: number
   initialNotesCount: number
@@ -36,6 +37,7 @@ interface DashboardClientProps {
 
 export function DashboardClient({
   userId,
+  userIds,
   initialFormulasCount,
   initialShortcutsCount,
   initialNotesCount,
@@ -45,6 +47,12 @@ export function DashboardClient({
 }: DashboardClientProps) {
   const supabase = useMemo(() => createClient(), [])
   const searchParams = useSearchParams()
+
+  const targetUserIds = useMemo(() => {
+    const list = userIds && userIds.length > 0 ? userIds : [userId]
+    return Array.from(new Set(list))
+  }, [userId, userIds])
+
   const [searchQuery, setSearchQuery] = useState("")
   const [searchCategory, setSearchCategory] = useState("all")
   const [favoriteFilter, setFavoriteFilter] = useState("all")
@@ -98,7 +106,7 @@ export function DashboardClient({
       const { data: shares } = await supabase
         .from("shared_items")
         .select("resource_id, resource_type")
-        .eq("owner_id", userId)
+        .in("owner_id", targetUserIds)
       
       if (shares) {
         shares.forEach(s => {
@@ -132,6 +140,8 @@ export function DashboardClient({
       return query
     }
 
+    const cleanQuery = searchQuery.trim().replace(/[*%]/g, "")
+
     // Search based on category selection
     if (searchCategory === "new") {
       // Fetch only recently created items across all categories
@@ -139,13 +149,13 @@ export function DashboardClient({
         let query = supabase
           .from(table)
           .select("*")
-          .or(`user_id.eq.${userId},clerk_user_id.eq.${userId}`)
+          .in("user_id", targetUserIds)
           .neq("is_deleted", true)
           .order("created_at", { ascending: false })
           .limit(5)
         
-        if (searchQuery.trim()) {
-          query = query.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`)
+        if (cleanQuery) {
+          query = query.or(`title.ilike.*${cleanQuery}*,description.ilike.*${cleanQuery}*`)
         }
         if (favoriteFilter === "favorites") query = query.eq("is_favorite", true)
         else if (favoriteFilter === "unfavorites") query = query.eq("is_favorite", false)
@@ -172,11 +182,11 @@ export function DashboardClient({
         let query = supabase
           .from("formulas")
           .select("*")
-          .or(`user_id.eq.${userId},clerk_user_id.eq.${userId}`)
+          .in("user_id", targetUserIds)
           .neq("is_deleted", true)
         
-        if (searchQuery.trim()) {
-          query = query.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`)
+        if (cleanQuery) {
+          query = query.or(`title.ilike.*${cleanQuery}*,description.ilike.*${cleanQuery}*`)
         }
         
         query = applyFilters(query, "formulas")
@@ -188,14 +198,14 @@ export function DashboardClient({
           const { data: sharedItems } = await supabase
             .from("shared_items")
             .select("resource_id, permission, created_at")
-            .eq("shared_with_id", userId)
+            .in("shared_with_id", targetUserIds)
             .eq("resource_type", "formulas")
           
           if (sharedItems && sharedItems.length > 0) {
             const ids = sharedItems.map(s => s.resource_id)
             let sharedQuery = supabase.from("formulas").select("*").in("id", ids).neq("is_deleted", true)
-            if (searchQuery.trim()) {
-              sharedQuery = sharedQuery.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`)
+            if (cleanQuery) {
+              sharedQuery = sharedQuery.or(`title.ilike.*${cleanQuery}*,description.ilike.*${cleanQuery}*`)
             }
             if (favoriteFilter === "favorites") sharedQuery = sharedQuery.eq("is_favorite", true)
             else if (favoriteFilter === "unfavorites") sharedQuery = sharedQuery.eq("is_favorite", false)
@@ -215,11 +225,11 @@ export function DashboardClient({
         let query = supabase
           .from("shortcuts")
           .select("*")
-          .or(`user_id.eq.${userId},clerk_user_id.eq.${userId}`)
+          .in("user_id", targetUserIds)
           .neq("is_deleted", true)
         
-        if (searchQuery.trim()) {
-          query = query.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`)
+        if (cleanQuery) {
+          query = query.or(`title.ilike.*${cleanQuery}*,description.ilike.*${cleanQuery}*`)
         }
         
         query = applyFilters(query, "shortcuts")
@@ -231,14 +241,14 @@ export function DashboardClient({
           const { data: sharedItems } = await supabase
             .from("shared_items")
             .select("resource_id, permission, created_at")
-            .eq("shared_with_id", userId)
+            .in("shared_with_id", targetUserIds)
             .eq("resource_type", "shortcuts")
           
           if (sharedItems && sharedItems.length > 0) {
             const ids = sharedItems.map(s => s.resource_id)
             let sharedQuery = supabase.from("shortcuts").select("*").in("id", ids).neq("is_deleted", true)
-            if (searchQuery.trim()) {
-              sharedQuery = sharedQuery.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`)
+            if (cleanQuery) {
+              sharedQuery = sharedQuery.or(`title.ilike.*${cleanQuery}*,description.ilike.*${cleanQuery}*`)
             }
             if (favoriteFilter === "favorites") sharedQuery = sharedQuery.eq("is_favorite", true)
             else if (favoriteFilter === "unfavorites") sharedQuery = sharedQuery.eq("is_favorite", false)
@@ -258,11 +268,11 @@ export function DashboardClient({
         let query = supabase
           .from("notes")
           .select("*")
-          .or(`user_id.eq.${userId},clerk_user_id.eq.${userId}`)
+          .in("user_id", targetUserIds)
           .neq("is_deleted", true)
         
-        if (searchQuery.trim()) {
-          query = query.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`)
+        if (cleanQuery) {
+          query = query.or(`title.ilike.*${cleanQuery}*,description.ilike.*${cleanQuery}*`)
         }
         
         query = applyFilters(query, "notes")
@@ -274,14 +284,14 @@ export function DashboardClient({
           const { data: sharedItems } = await supabase
             .from("shared_items")
             .select("resource_id, permission, created_at")
-            .eq("shared_with_id", userId)
+            .in("shared_with_id", targetUserIds)
             .eq("resource_type", "notes")
           
           if (sharedItems && sharedItems.length > 0) {
             const ids = sharedItems.map(s => s.resource_id)
             let sharedQuery = supabase.from("notes").select("*").in("id", ids).neq("is_deleted", true)
-            if (searchQuery.trim()) {
-              sharedQuery = sharedQuery.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`)
+            if (cleanQuery) {
+              sharedQuery = sharedQuery.or(`title.ilike.*${cleanQuery}*,description.ilike.*${cleanQuery}*`)
             }
             if (favoriteFilter === "favorites") sharedQuery = sharedQuery.eq("is_favorite", true)
             else if (favoriteFilter === "unfavorites") sharedQuery = sharedQuery.eq("is_favorite", false)
@@ -301,11 +311,11 @@ export function DashboardClient({
         let query = supabase
           .from("urls")
           .select("*")
-          .or(`user_id.eq.${userId},clerk_user_id.eq.${userId}`)
+          .in("user_id", targetUserIds)
           .neq("is_deleted", true)
         
-        if (searchQuery.trim()) {
-          query = query.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%,url.ilike.%${searchQuery}%`)
+        if (cleanQuery) {
+          query = query.or(`title.ilike.*${cleanQuery}*,description.ilike.*${cleanQuery}*,url.ilike.*${cleanQuery}*`)
         }
         
         query = applyFilters(query, "urls")
@@ -317,14 +327,14 @@ export function DashboardClient({
           const { data: sharedItems } = await supabase
             .from("shared_items")
             .select("resource_id, permission, created_at")
-            .eq("shared_with_id", userId)
+            .in("shared_with_id", targetUserIds)
             .eq("resource_type", "urls")
           
           if (sharedItems && sharedItems.length > 0) {
             const ids = sharedItems.map(s => s.resource_id)
             let sharedQuery = supabase.from("urls").select("*").in("id", ids).neq("is_deleted", true)
-            if (searchQuery.trim()) {
-              sharedQuery = sharedQuery.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%,url.ilike.%${searchQuery}%`)
+            if (cleanQuery) {
+              sharedQuery = sharedQuery.or(`title.ilike.*${cleanQuery}*,description.ilike.*${cleanQuery}*,url.ilike.*${cleanQuery}*`)
             }
             if (favoriteFilter === "favorites") sharedQuery = sharedQuery.eq("is_favorite", true)
             else if (favoriteFilter === "unfavorites") sharedQuery = sharedQuery.eq("is_favorite", false)
@@ -344,11 +354,11 @@ export function DashboardClient({
         let query = supabase
           .from("todos")
           .select("*")
-          .or(`user_id.eq.${userId},clerk_user_id.eq.${userId}`)
+          .in("user_id", targetUserIds)
           .neq("is_deleted", true)
         
-        if (searchQuery.trim()) {
-          query = query.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`)
+        if (cleanQuery) {
+          query = query.or(`title.ilike.*${cleanQuery}*,description.ilike.*${cleanQuery}*`)
         }
         
         query = applyFilters(query, "todos")
@@ -360,14 +370,14 @@ export function DashboardClient({
           const { data: sharedItems } = await supabase
             .from("shared_items")
             .select("resource_id, permission, created_at")
-            .eq("shared_with_id", userId)
+            .in("shared_with_id", targetUserIds)
             .eq("resource_type", "todos")
           
           if (sharedItems && sharedItems.length > 0) {
             const ids = sharedItems.map(s => s.resource_id)
             let sharedQuery = supabase.from("todos").select("*").in("id", ids).neq("is_deleted", true)
-            if (searchQuery.trim()) {
-              sharedQuery = sharedQuery.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`)
+            if (cleanQuery) {
+              sharedQuery = sharedQuery.or(`title.ilike.*${cleanQuery}*,description.ilike.*${cleanQuery}*`)
             }
             if (favoriteFilter === "favorites") sharedQuery = sharedQuery.eq("is_favorite", true)
             else if (favoriteFilter === "unfavorites") sharedQuery = sharedQuery.eq("is_favorite", false)

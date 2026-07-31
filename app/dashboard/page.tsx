@@ -14,18 +14,17 @@ export default async function DashboardPage() {
 
   const email = clerkUser?.primaryEmailAddress?.emailAddress || null
   const dbInfo = await getUserDbInfo(userId, email)
-  const filterOr = `user_id.eq.${dbInfo.uuid},clerk_user_id.eq.${dbInfo.clerkUserId}`
 
   const supabase = await createClient()
 
   // Fetching initial counts for all categories
   const [formulasRes, shortcutsRes, notesRes, urlsRes, todosRes, sharedItemsRes] = await Promise.all([
-    supabase.from("formulas").select("*", { count: "exact", head: true }).or(filterOr).neq("is_deleted", true),
-    supabase.from("shortcuts").select("*", { count: "exact", head: true }).or(filterOr).neq("is_deleted", true),
-    supabase.from("notes").select("*", { count: "exact", head: true }).or(filterOr).neq("is_deleted", true),
-    supabase.from("urls").select("*", { count: "exact", head: true }).or(filterOr).neq("is_deleted", true),
-    supabase.from("todos").select("*", { count: "exact", head: true }).or(filterOr).neq("is_deleted", true),
-    supabase.from("shared_items").select("resource_id, resource_type").or(`shared_with_id.eq.${dbInfo.uuid},shared_with_id.eq.${dbInfo.clerkUserId}`),
+    supabase.from("formulas").select("*", { count: "exact", head: true }).in("user_id", dbInfo.userIds).neq("is_deleted", true),
+    supabase.from("shortcuts").select("*", { count: "exact", head: true }).in("user_id", dbInfo.userIds).neq("is_deleted", true),
+    supabase.from("notes").select("*", { count: "exact", head: true }).in("user_id", dbInfo.userIds).neq("is_deleted", true),
+    supabase.from("urls").select("*", { count: "exact", head: true }).in("user_id", dbInfo.userIds).neq("is_deleted", true),
+    supabase.from("todos").select("*", { count: "exact", head: true }).in("user_id", dbInfo.userIds).neq("is_deleted", true),
+    supabase.from("shared_items").select("resource_id, resource_type").in("shared_with_id", dbInfo.userIds),
   ])
 
   // Calculate actual visible shared count by checking if resources are not deleted
@@ -72,7 +71,9 @@ export default async function DashboardPage() {
         initialTodosCount={todosRes.count || 0}
         initialSharedCount={initialSharedCount}
         userId={dbInfo.uuid}
+        userIds={dbInfo.userIds}
       />
     </div>
   )
+
 }

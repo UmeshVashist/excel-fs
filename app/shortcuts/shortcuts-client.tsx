@@ -84,11 +84,15 @@ export function ShortcutsClient({
     }
   }
 
+  const checkIsOwner = (ownerId?: string | null) => {
+    if (!ownerId) return true
+    return ownerId === userId || targetUserIds.includes(ownerId) || (user?.clerk_user_id && ownerId === user.clerk_user_id)
+  }
+
   const loadShortcuts = async () => {
     try {
-      // Fetch only owned shortcuts
       const { data: ownedData } = await getItemsAction("shortcuts")
-      if (ownedData && ownedData.length > 0) {
+      if (ownedData) {
         setShortcuts(ownedData)
       }
     } catch (error: any) {
@@ -100,21 +104,25 @@ export function ShortcutsClient({
 
 
   const filteredShortcuts = useMemo(() => {
-    let result = shortcuts.filter(s => s.user_id === userId || (s as any).clerk_user_id === userId || !s.user_id)
+    let result = shortcuts.filter(s => checkIsOwner(s.user_id) || checkIsOwner((s as any).clerk_user_id))
 
+    // Apply search filter
     if (searchQuery) {
-      result = result.filter((s) =>
+      result = result.filter((s) => 
         s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.description?.toLowerCase().includes(searchQuery.toLowerCase())
+        s.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        s.shortcut.toLowerCase().includes(searchQuery.toLowerCase())
       )
     }
 
+    // Apply favorite filter
     if (favoriteFilter === "favorites") {
       result = result.filter((s) => s.is_favorite)
     } else if (favoriteFilter === "unfavorites") {
       result = result.filter((s) => !s.is_favorite)
     }
 
+    // Apply shared filter
     if (sharedFilter === "shared") {
       result = result.filter((s) => sharesInfo[s.id] && sharesInfo[s.id].length > 0)
     } else if (sharedFilter === "unshare") {
@@ -122,7 +130,7 @@ export function ShortcutsClient({
     }
 
     return result
-  }, [shortcuts, searchQuery, favoriteFilter, sharedFilter, sharesInfo, userId])
+  }, [searchQuery, favoriteFilter, sharedFilter, shortcuts, sharesInfo, userId, targetUserIds, user])
 
   const handleAdd = () => {
     setEditingShortcut(null)
@@ -151,19 +159,26 @@ export function ShortcutsClient({
   }
 
   const handleDelete = async (id: string, ownerId: string) => {
-    const isOwner = ownerId === userId
+    const isOwner = checkIsOwner(ownerId)
 
     if (isOwner) {
       if (confirm("Are you sure you want to move this shortcut to Recycle Bin?")) {
+        setShortcuts((prev) => prev.filter((s) => s.id !== id))
         const res = await deleteItemAction("shortcuts", id)
         if (res.success) {
+          loadShortcuts()
+        } else {
+          console.error("Delete error:", res.error)
           loadShortcuts()
         }
       }
     } else {
       if (confirm("This item was shared with you. Are you sure you want to remove it from your list?")) {
+        setShortcuts((prev) => prev.filter((s) => s.id !== id))
         const res = await removeSharedItemAction(id, "shortcuts")
         if (res.success) {
+          loadShortcuts()
+        } else {
           loadShortcuts()
         }
       }

@@ -87,35 +87,44 @@ export function NotesClient({
     }
   }
 
+  const checkIsOwner = (ownerId?: string | null) => {
+    if (!ownerId) return true
+    return ownerId === userId || targetUserIds.includes(ownerId) || (user?.clerk_user_id && ownerId === user.clerk_user_id)
+  }
+
   const loadNotes = async () => {
     try {
-      // Fetch only owned notes
       const { data: ownedData } = await getItemsAction("notes")
-      if (ownedData && ownedData.length > 0) {
+      if (ownedData) {
         setNotes(ownedData)
       }
-    } catch (error) {
-      console.error("Error loading notes:", error)
+    } catch (error: any) {
+      if (error.code !== "PGRST205") {
+        console.error("Error loading notes:", error)
+      }
     }
   }
 
 
   const filteredNotes = useMemo(() => {
-    let result = notes.filter(n => n.user_id === userId || (n as any).clerk_user_id === userId || !n.user_id)
+    let result = notes.filter(n => checkIsOwner(n.user_id) || checkIsOwner((n as any).clerk_user_id))
 
+    // Apply search filter
     if (searchQuery) {
-      result = result.filter((n) =>
+      result = result.filter((n) => 
         n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         n.description?.toLowerCase().includes(searchQuery.toLowerCase())
       )
     }
 
+    // Apply favorite filter
     if (favoriteFilter === "favorites") {
       result = result.filter((n) => n.is_favorite)
     } else if (favoriteFilter === "unfavorites") {
       result = result.filter((n) => !n.is_favorite)
     }
 
+    // Apply shared filter
     if (sharedFilter === "shared") {
       result = result.filter((n) => sharesInfo[n.id] && sharesInfo[n.id].length > 0)
     } else if (sharedFilter === "unshare") {
@@ -123,7 +132,7 @@ export function NotesClient({
     }
 
     return result
-  }, [notes, searchQuery, favoriteFilter, sharedFilter, sharesInfo, userId])
+  }, [searchQuery, favoriteFilter, sharedFilter, notes, sharesInfo, userId, targetUserIds, user])
 
   const handleAdd = () => {
     setEditingNote(null)
@@ -152,19 +161,26 @@ export function NotesClient({
   }
 
   const handleDelete = async (id: string, ownerId: string) => {
-    const isOwner = ownerId === userId
+    const isOwner = checkIsOwner(ownerId)
 
     if (isOwner) {
       if (confirm("Are you sure you want to move this note to Recycle Bin?")) {
+        setNotes((prev) => prev.filter((n) => n.id !== id))
         const res = await deleteItemAction("notes", id)
         if (res.success) {
+          loadNotes()
+        } else {
+          console.error("Delete error:", res.error)
           loadNotes()
         }
       }
     } else {
       if (confirm("This item was shared with you. Are you sure you want to remove it from your list?")) {
+        setNotes((prev) => prev.filter((n) => n.id !== id))
         const res = await removeSharedItemAction(id, "notes")
         if (res.success) {
+          loadNotes()
+        } else {
           loadNotes()
         }
       }

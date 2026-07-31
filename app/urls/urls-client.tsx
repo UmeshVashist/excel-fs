@@ -89,37 +89,44 @@ export function UrlsClient({
     }
   }
 
+  const checkIsOwner = (ownerId?: string | null) => {
+    if (!ownerId) return true
+    return ownerId === userId || targetUserIds.includes(ownerId) || (user?.clerk_user_id && ownerId === user.clerk_user_id)
+  }
+
   const loadUrls = async () => {
     try {
-      // Fetch only owned urls
       const { data: ownedData } = await getItemsAction("urls")
-      if (ownedData && ownedData.length > 0) {
+      if (ownedData) {
         setUrls(ownedData)
       }
     } catch (error: any) {
       if (error.code !== "PGRST205") {
-        console.error("Error loading urls:", error)
+        console.error("Error loading URLs:", error)
       }
     }
   }
 
   const filteredUrls = useMemo(() => {
-    let result = urls.filter(u => u.user_id === userId || (u as any).clerk_user_id === userId || !u.user_id)
+    let result = urls.filter(u => checkIsOwner(u.user_id) || checkIsOwner((u as any).clerk_user_id))
 
+    // Apply search filter
     if (searchQuery) {
-      result = result.filter((u) =>
+      result = result.filter((u) => 
         u.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         u.url.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (u as any).description?.toLowerCase().includes(searchQuery.toLowerCase())
+        u.username?.toLowerCase().includes(searchQuery.toLowerCase())
       )
     }
 
+    // Apply favorite filter
     if (favoriteFilter === "favorites") {
       result = result.filter((u) => u.is_favorite)
     } else if (favoriteFilter === "unfavorites") {
       result = result.filter((u) => !u.is_favorite)
     }
 
+    // Apply shared filter
     if (sharedFilter === "shared") {
       result = result.filter((u) => sharesInfo[u.id] && sharesInfo[u.id].length > 0)
     } else if (sharedFilter === "unshare") {
@@ -127,7 +134,7 @@ export function UrlsClient({
     }
 
     return result
-  }, [urls, searchQuery, favoriteFilter, sharedFilter, sharesInfo, userId])
+  }, [searchQuery, favoriteFilter, sharedFilter, urls, sharesInfo, userId, targetUserIds, user])
 
   const handleAdd = () => {
     setEditingUrl(null)
@@ -156,19 +163,26 @@ export function UrlsClient({
   }
 
   const handleDelete = async (id: string, ownerId: string) => {
-    const isOwner = ownerId === userId
+    const isOwner = checkIsOwner(ownerId)
 
     if (isOwner) {
       if (confirm("Are you sure you want to move this URL to Recycle Bin?")) {
+        setUrls((prev) => prev.filter((u) => u.id !== id))
         const res = await deleteItemAction("urls", id)
         if (res.success) {
+          loadUrls()
+        } else {
+          console.error("Delete error:", res.error)
           loadUrls()
         }
       }
     } else {
       if (confirm("This item was shared with you. Are you sure you want to remove it from your list?")) {
+        setUrls((prev) => prev.filter((u) => u.id !== id))
         const res = await removeSharedItemAction(id, "urls")
         if (res.success) {
+          loadUrls()
+        } else {
           loadUrls()
         }
       }

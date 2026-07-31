@@ -87,11 +87,15 @@ export function FormulasClient({
     }
   }
 
+  const checkIsOwner = (ownerId?: string | null) => {
+    if (!ownerId) return true
+    return ownerId === userId || targetUserIds.includes(ownerId) || (user?.clerk_user_id && ownerId === user.clerk_user_id)
+  }
+
   const loadFormulas = async () => {
     try {
-      // Fetch only owned formulas
       const { data: ownedData } = await getItemsAction("formulas")
-      if (ownedData && ownedData.length > 0) {
+      if (ownedData) {
         setFormulas(ownedData)
       }
     } catch (error: any) {
@@ -101,9 +105,8 @@ export function FormulasClient({
     }
   }
 
-
   const filteredFormulas = useMemo(() => {
-    let result = formulas.filter(f => f.user_id === userId || (f as any).clerk_user_id === userId || !f.user_id)
+    let result = formulas.filter(f => checkIsOwner(f.user_id) || checkIsOwner((f as any).clerk_user_id))
 
     // Apply search filter
     if (searchQuery) {
@@ -130,7 +133,7 @@ export function FormulasClient({
     }
 
     return result
-  }, [searchQuery, favoriteFilter, sharedFilter, formulas, sharesInfo, userId])
+  }, [searchQuery, favoriteFilter, sharedFilter, formulas, sharesInfo, userId, targetUserIds, user])
 
   const handleAdd = () => {
     setEditingFormula(null)
@@ -159,19 +162,26 @@ export function FormulasClient({
   }
 
   const handleDelete = async (id: string, ownerId: string) => {
-    const isOwner = ownerId === userId
+    const isOwner = checkIsOwner(ownerId)
 
     if (isOwner) {
       if (confirm("Are you sure you want to move this formula to Recycle Bin?")) {
+        setFormulas((prev) => prev.filter((f) => f.id !== id))
         const res = await deleteItemAction("formulas", id)
         if (res.success) {
+          loadFormulas()
+        } else {
+          console.error("Delete error:", res.error)
           loadFormulas()
         }
       }
     } else {
       if (confirm("This item was shared with you. Are you sure you want to remove it from your list?")) {
+        setFormulas((prev) => prev.filter((f) => f.id !== id))
         const res = await removeSharedItemAction(id, "formulas")
         if (res.success) {
+          loadFormulas()
+        } else {
           loadFormulas()
         }
       }

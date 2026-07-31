@@ -12,18 +12,27 @@ export async function addItemAction(table: string, payload: any) {
     const { userId: clerkUserId } = await auth()
     if (!clerkUserId) return { error: "Unauthorized" }
 
-    const supabase = createServiceRoleClient()
-    const dbInfo = await getUserDbInfo(clerkUserId)
+    const clerkUser = await currentUser()
+    const email = clerkUser?.primaryEmailAddress?.emailAddress || null
+    const dbInfo = await getUserDbInfo(clerkUserId, email)
 
-    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(payload.user_id || "")
-    const insertData = {
+    const supabase = createServiceRoleClient()
+
+    const insertData: any = {
       ...payload,
-      user_id: isUUID ? payload.user_id : dbInfo.uuid,
+      user_id: dbInfo.uuid,
       clerk_user_id: clerkUserId,
       is_deleted: false,
     }
 
-    const { data, error } = await supabase.from(table).insert(insertData).select().single()
+    let { data, error } = await supabase.from(table).insert(insertData).select().single()
+
+    if (error && (error.code === "PGRST204" || error.message.includes("clerk_user_id"))) {
+      delete insertData.clerk_user_id
+      const retry = await supabase.from(table).insert(insertData).select().single()
+      data = retry.data
+      error = retry.error
+    }
 
     if (error) {
       console.error(`Insert ${table} error:`, error)
@@ -52,8 +61,11 @@ export async function updateItemAction(table: string, id: string, payload: any) 
     const { userId: clerkUserId } = await auth()
     if (!clerkUserId) return { error: "Unauthorized" }
 
+    const clerkUser = await currentUser()
+    const email = clerkUser?.primaryEmailAddress?.emailAddress || null
+    const dbInfo = await getUserDbInfo(clerkUserId, email)
+
     const supabase = createServiceRoleClient()
-    const dbInfo = await getUserDbInfo(clerkUserId)
 
     const updateData = {
       ...payload,
@@ -94,8 +106,11 @@ export async function deleteItemAction(table: string, id: string) {
     const { userId: clerkUserId } = await auth()
     if (!clerkUserId) return { error: "Unauthorized" }
 
+    const clerkUser = await currentUser()
+    const email = clerkUser?.primaryEmailAddress?.emailAddress || null
+    const dbInfo = await getUserDbInfo(clerkUserId, email)
+
     const supabase = createServiceRoleClient()
-    const dbInfo = await getUserDbInfo(clerkUserId)
 
     // Soft delete: move to Recycle Bin
     const { error } = await supabase
@@ -132,8 +147,11 @@ export async function toggleFavoriteAction(table: string, id: string, currentFav
     const { userId: clerkUserId } = await auth()
     if (!clerkUserId) return { error: "Unauthorized" }
 
+    const clerkUser = await currentUser()
+    const email = clerkUser?.primaryEmailAddress?.emailAddress || null
+    const dbInfo = await getUserDbInfo(clerkUserId, email)
+
     const supabase = createServiceRoleClient()
-    const dbInfo = await getUserDbInfo(clerkUserId)
 
     const { error } = await supabase
       .from(table)
@@ -166,8 +184,11 @@ export async function removeSharedItemAction(resourceId: string, resourceType: s
     const { userId: clerkUserId } = await auth()
     if (!clerkUserId) return { error: "Unauthorized" }
 
+    const clerkUser = await currentUser()
+    const email = clerkUser?.primaryEmailAddress?.emailAddress || null
+    const dbInfo = await getUserDbInfo(clerkUserId, email)
+
     const supabase = createServiceRoleClient()
-    const dbInfo = await getUserDbInfo(clerkUserId)
 
     const { error } = await supabase
       .from("shared_items")
@@ -175,7 +196,6 @@ export async function removeSharedItemAction(resourceId: string, resourceType: s
       .eq("resource_id", resourceId)
       .eq("resource_type", resourceType)
       .in("shared_with_id", dbInfo.userIds)
-
 
     if (error) {
       console.error(`Remove shared item error on ${resourceType}:`, error)

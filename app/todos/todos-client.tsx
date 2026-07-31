@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { TodoItem } from "@/components/todo-item"
 import { TodoForm } from "@/components/todo-form"
 import useSWR from "swr"
+import { fetchItemsForUser } from "@/lib/supabase/user-helper"
 import { createClient } from "@/lib/supabase/client"
 import { SidebarProvider } from "@/components/sidebar-provider"
 import { getBatchSharedWith } from "@/lib/sharing-actions"
@@ -49,17 +50,13 @@ export function TodosClient({
     async () => {
       try {
         // Fetch only owned todos
-        const { data: ownedData, error: ownedError } = await supabase
-          .from("todos")
-          .select("*")
-          .in("user_id", targetUserIds)
-          .neq("is_deleted", true)
+        const { data: ownedData, error: ownedError } = await fetchItemsForUser(supabase, "todos", targetUserIds)
 
-        
         if (ownedError) {
           console.error("Error fetching owned todos:", ownedError)
           throw ownedError
         }
+
 
         const sortedTodos = (ownedData || []).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) as Todo[]
 

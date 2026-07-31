@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation"
 import { auth, currentUser } from "@clerk/nextjs/server"
 import { createClient } from "@/lib/supabase/server"
-import { getUserDbInfo } from "@/lib/supabase/user-helper"
+import { getUserDbInfo, fetchItemsForUser } from "@/lib/supabase/user-helper"
 import { ShortcutsClient } from "./shortcuts-client"
 import { Suspense } from "react"
 import { LoadingIcon } from "@/components/loading-icon"
@@ -19,12 +19,8 @@ export default async function ShortcutsPage() {
 
   const supabase = await createClient()
 
-  const { data: shortcuts } = await supabase
-    .from("shortcuts")
-    .select("*")
-    .in("user_id", dbInfo.userIds)
-    .neq("is_deleted", true)
-    .order("created_at", { ascending: false })
+  const { data: shortcuts } = await fetchItemsForUser(supabase, "shortcuts", dbInfo.userIds)
+
 
   const user = clerkUser
     ? {

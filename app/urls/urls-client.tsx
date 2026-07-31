@@ -8,6 +8,7 @@ import { Search, Plus, X } from "lucide-react"
 import { UrlsList } from "@/components/urls-list"
 import { UrlForm } from "@/components/url-form"
 import { createClient } from "@/lib/supabase/client"
+import { fetchItemsForUser } from "@/lib/supabase/user-helper"
 import { getBatchSharedWith } from "@/lib/sharing-actions"
 import { deleteItemAction, removeSharedItemAction, toggleFavoriteAction } from "@/lib/item-actions"
 import { ShareModal } from "@/components/share-modal"
@@ -90,13 +91,7 @@ export function UrlsClient({
   const loadUrls = async () => {
     try {
       // Fetch only owned urls
-      const { data: ownedData } = await supabase
-        .from("urls")
-        .select("*")
-        .in("user_id", targetUserIds)
-        .neq("is_deleted", true)
-        .order("created_at", { ascending: false })
-
+      const { data: ownedData } = await fetchItemsForUser(supabase, "urls", targetUserIds)
       setUrls(ownedData || [])
     } catch (error: any) {
       if (error.code !== "PGRST205") {

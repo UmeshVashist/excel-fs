@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation"
 import { auth, currentUser } from "@clerk/nextjs/server"
 import { createClient } from "@/lib/supabase/server"
-import { getUserDbInfo } from "@/lib/supabase/user-helper"
+import { getUserDbInfo, countItemsForUser } from "@/lib/supabase/user-helper"
 import { DashboardClient } from "./dashboard-client"
 
 export default async function DashboardPage() {
@@ -18,12 +18,12 @@ export default async function DashboardPage() {
   const supabase = await createClient()
 
   // Fetching initial counts for all categories
-  const [formulasRes, shortcutsRes, notesRes, urlsRes, todosRes, sharedItemsRes] = await Promise.all([
-    supabase.from("formulas").select("*", { count: "exact", head: true }).in("user_id", dbInfo.userIds).neq("is_deleted", true),
-    supabase.from("shortcuts").select("*", { count: "exact", head: true }).in("user_id", dbInfo.userIds).neq("is_deleted", true),
-    supabase.from("notes").select("*", { count: "exact", head: true }).in("user_id", dbInfo.userIds).neq("is_deleted", true),
-    supabase.from("urls").select("*", { count: "exact", head: true }).in("user_id", dbInfo.userIds).neq("is_deleted", true),
-    supabase.from("todos").select("*", { count: "exact", head: true }).in("user_id", dbInfo.userIds).neq("is_deleted", true),
+  const [formulasCount, shortcutsCount, notesCount, urlsCount, todosCount, sharedItemsRes] = await Promise.all([
+    countItemsForUser(supabase, "formulas", dbInfo.userIds),
+    countItemsForUser(supabase, "shortcuts", dbInfo.userIds),
+    countItemsForUser(supabase, "notes", dbInfo.userIds),
+    countItemsForUser(supabase, "urls", dbInfo.userIds),
+    countItemsForUser(supabase, "todos", dbInfo.userIds),
     supabase.from("shared_items").select("resource_id, resource_type").in("shared_with_id", dbInfo.userIds),
   ])
 
@@ -64,16 +64,17 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-8">
       <DashboardClient
-        initialFormulasCount={formulasRes.count || 0}
-        initialShortcutsCount={shortcutsRes.count || 0}
-        initialNotesCount={notesRes.count || 0}
-        initialUrlsCount={urlsRes.count || 0}
-        initialTodosCount={todosRes.count || 0}
+        initialFormulasCount={formulasCount}
+        initialShortcutsCount={shortcutsCount}
+        initialNotesCount={notesCount}
+        initialUrlsCount={urlsCount}
+        initialTodosCount={todosCount}
         initialSharedCount={initialSharedCount}
         userId={dbInfo.uuid}
         userIds={dbInfo.userIds}
       />
     </div>
   )
+
 
 }

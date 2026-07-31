@@ -8,6 +8,7 @@ import { Search, Plus, X } from "lucide-react"
 import { ShortcutList } from "@/components/shortcut-list"
 import { ShortcutForm } from "@/components/shortcut-form"
 import { createClient } from "@/lib/supabase/client"
+import { fetchItemsForUser } from "@/lib/supabase/user-helper"
 import { getBatchSharedWith } from "@/lib/sharing-actions"
 import { deleteItemAction, removeSharedItemAction, toggleFavoriteAction } from "@/lib/item-actions"
 import { ShareModal } from "@/components/share-modal"
@@ -85,13 +86,7 @@ export function ShortcutsClient({
   const loadShortcuts = async () => {
     try {
       // Fetch only owned shortcuts
-      const { data: ownedData } = await supabase
-        .from("shortcuts")
-        .select("*")
-        .in("user_id", targetUserIds)
-        .neq("is_deleted", true)
-        .order("created_at", { ascending: false })
-
+      const { data: ownedData } = await fetchItemsForUser(supabase, "shortcuts", targetUserIds)
       setShortcuts(ownedData || [])
     } catch (error: any) {
       if (error.code !== "PGRST205") {

@@ -71,3 +71,106 @@ export async function getUserDbInfo(clerkUserId: string, email?: string | null):
     userIds,
   }
 }
+
+export async function fetchItemsForUser(
+  supabase: any,
+  table: string,
+  userIds: string[],
+  extraOptions?: { limit?: number; searchQuery?: string; favoriteFilter?: string }
+) {
+  const cleanUserIds = Array.from(new Set((userIds || []).filter(Boolean)))
+  if (cleanUserIds.length === 0) return { data: [], error: null }
+
+  const idsList = cleanUserIds.join(",")
+  const cleanQuery = extraOptions?.searchQuery?.trim().replace(/[*%]/g, "") || ""
+
+  // 1. Try querying with .or("user_id.in.(...),clerk_user_id.in(...)")
+  try {
+    let query = supabase
+      .from(table)
+      .select("*")
+      .or(`user_id.in.(${idsList}),clerk_user_id.in.(${idsList})`)
+      .neq("is_deleted", true)
+      .order("created_at", { ascending: false })
+
+    if (cleanQuery) {
+      if (table === "urls") {
+        query = query.or(`title.ilike.*${cleanQuery}*,description.ilike.*${cleanQuery}*,url.ilike.*${cleanQuery}*`)
+      } else {
+        query = query.or(`title.ilike.*${cleanQuery}*,description.ilike.*${cleanQuery}*`)
+      }
+    }
+
+    if (extraOptions?.favoriteFilter === "favorites") query = query.eq("is_favorite", true)
+    else if (extraOptions?.favoriteFilter === "unfavorites") query = query.eq("is_favorite", false)
+
+    if (extraOptions?.limit) query = query.limit(extraOptions.limit)
+
+    const { data, error } = await query
+
+    if (!error) return { data: data || [], error: null }
+  } catch (err) {
+    // Ignore and fallback to user_id query
+  }
+
+  // 2. Fallback: Query by user_id column using .in("user_id", cleanUserIds)
+  try {
+    let query = supabase
+      .from(table)
+      .select("*")
+      .in("user_id", cleanUserIds)
+      .neq("is_deleted", true)
+      .order("created_at", { ascending: false })
+
+    if (cleanQuery) {
+      if (table === "urls") {
+        query = query.or(`title.ilike.*${cleanQuery}*,description.ilike.*${cleanQuery}*,url.ilike.*${cleanQuery}*`)
+      } else {
+        query = query.or(`title.ilike.*${cleanQuery}*,description.ilike.*${cleanQuery}*`)
+      }
+    }
+
+    if (extraOptions?.favoriteFilter === "favorites") query = query.eq("is_favorite", true)
+    else if (extraOptions?.favoriteFilter === "unfavorites") query = query.eq("is_favorite", false)
+
+    if (extraOptions?.limit) query = query.limit(extraOptions.limit)
+
+    const { data, error } = await query
+    return { data: data || [], error }
+  } catch (err) {
+    return { data: [], error: err }
+  }
+}
+
+export async function countItemsForUser(supabase: any, table: string, userIds: string[]): Promise<number> {
+  const cleanUserIds = Array.from(new Set((userIds || []).filter(Boolean)))
+  if (cleanUserIds.length === 0) return 0
+
+  const idsList = cleanUserIds.join(",")
+
+  try {
+    const { count, error } = await supabase
+      .from(table)
+      .select("*", { count: "exact", head: true })
+      .or(`user_id.in.(${idsList}),clerk_user_id.in.(${idsList})`)
+      .neq("is_deleted", true)
+
+    if (!error && count !== null) return count
+  } catch (err) {
+    // fallback
+  }
+
+  try {
+    const { count } = await supabase
+      .from(table)
+      .select("*", { count: "exact", head: true })
+      .in("user_id", cleanUserIds)
+      .neq("is_deleted", true)
+
+    return count || 0
+  } catch (err) {
+    return 0
+  }
+}
+
+

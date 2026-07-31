@@ -8,6 +8,7 @@ import { Search, Plus, X } from "lucide-react"
 import { FormulaList } from "@/components/formula-list"
 import { FormulaForm } from "@/components/formula-form"
 import { createClient } from "@/lib/supabase/client"
+import { fetchItemsForUser } from "@/lib/supabase/user-helper"
 import { getBatchSharedWith } from "@/lib/sharing-actions"
 import { deleteItemAction, removeSharedItemAction, toggleFavoriteAction } from "@/lib/item-actions"
 import { ShareModal } from "@/components/share-modal"
@@ -88,13 +89,7 @@ export function FormulasClient({
   const loadFormulas = async () => {
     try {
       // Fetch only owned formulas
-      const { data: ownedData } = await supabase
-        .from("formulas")
-        .select("*")
-        .in("user_id", targetUserIds)
-        .neq("is_deleted", true)
-        .order("created_at", { ascending: false })
-
+      const { data: ownedData } = await fetchItemsForUser(supabase, "formulas", targetUserIds)
       setFormulas(ownedData || [])
     } catch (error: any) {
       if (error.code !== "PGRST205") {

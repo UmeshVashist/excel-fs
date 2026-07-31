@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react"
 import { useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { fetchItemsForUser } from "@/lib/supabase/user-helper"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -146,21 +147,11 @@ export function DashboardClient({
     if (searchCategory === "new") {
       // Fetch only recently created items across all categories
       const fetchRecent = async (table: string) => {
-        let query = supabase
-          .from(table)
-          .select("*")
-          .in("user_id", targetUserIds)
-          .neq("is_deleted", true)
-          .order("created_at", { ascending: false })
-          .limit(5)
-        
-        if (cleanQuery) {
-          query = query.or(`title.ilike.*${cleanQuery}*,description.ilike.*${cleanQuery}*`)
-        }
-        if (favoriteFilter === "favorites") query = query.eq("is_favorite", true)
-        else if (favoriteFilter === "unfavorites") query = query.eq("is_favorite", false)
-        
-        const { data } = await query
+        const { data } = await fetchItemsForUser(supabase, table, targetUserIds, {
+          limit: 5,
+          searchQuery: cleanQuery,
+          favoriteFilter,
+        })
         return data || []
       }
 

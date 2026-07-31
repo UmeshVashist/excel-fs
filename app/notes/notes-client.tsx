@@ -8,6 +8,8 @@ import { Search, Plus, X } from "lucide-react"
 import { NotesList } from "@/components/notes-list"
 import { NoteForm } from "@/components/note-form"
 import { createClient } from "@/lib/supabase/client"
+import { fetchItemsForUser } from "@/lib/supabase/user-helper"
+
 import { getBatchSharedWith } from "@/lib/sharing-actions"
 import { deleteItemAction, removeSharedItemAction, toggleFavoriteAction } from "@/lib/item-actions"
 import { ShareModal } from "@/components/share-modal"
@@ -87,13 +89,7 @@ export function NotesClient({
   const loadNotes = async () => {
     try {
       // Fetch only owned notes
-      const { data: ownedData } = await supabase
-        .from("notes")
-        .select("*")
-        .in("user_id", targetUserIds)
-        .neq("is_deleted", true)
-        .order("created_at", { ascending: false })
-
+      const { data: ownedData } = await fetchItemsForUser(supabase, "notes", targetUserIds)
       setNotes(ownedData || [])
     } catch (error) {
       console.error("Error loading notes:", error)

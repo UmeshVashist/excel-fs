@@ -2,7 +2,7 @@ import { Suspense } from "react"
 import { redirect } from "next/navigation"
 import { auth, currentUser } from "@clerk/nextjs/server"
 import { createClient } from "@/lib/supabase/server"
-import { getUserDbInfo } from "@/lib/supabase/user-helper"
+import { getUserDbInfo, fetchItemsForUser } from "@/lib/supabase/user-helper"
 import { LoadingIcon } from "@/components/loading-icon"
 import { UrlsClient } from "./urls-client"
 
@@ -19,12 +19,8 @@ export default async function UrlsPage() {
 
   const supabase = await createClient()
 
-  const { data: urls } = await supabase
-    .from("urls")
-    .select("*")
-    .in("user_id", dbInfo.userIds)
-    .neq("is_deleted", true)
-    .order("created_at", { ascending: false })
+  const { data: urls } = await fetchItemsForUser(supabase, "urls", dbInfo.userIds)
+
 
   const user = clerkUser
     ? {

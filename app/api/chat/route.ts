@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
-import { auth } from "@clerk/nextjs/server"
+import { auth, currentUser } from "@clerk/nextjs/server"
+import { getUserDbInfo, isValidUUID } from "@/lib/supabase/user-helper"
 
 const DEFAULT_GEMINI_KEY = process.env.GEMINI_API_KEY;
 const DEFAULT_OPENAI_KEY = process.env.OPENAI_API_KEY;
@@ -224,10 +225,14 @@ async function callOpenAI(prompt: string, apiKey: string): Promise<string> {
 export async function POST(req: Request) {
   const steps: string[] = []
   try {
-    const { userId } = await auth()
-    if (!userId) {
+    const { userId: clerkUserId } = await auth()
+    if (!clerkUserId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    const clerkUser = await currentUser()
+    const email = clerkUser?.primaryEmailAddress?.emailAddress || null
+    const dbInfo = await getUserDbInfo(clerkUserId, email)
+
     const supabase = await createClient()
 
     const {
@@ -258,10 +263,25 @@ export async function POST(req: Request) {
     if (enableDbSearch && (keywords.length > 0 || cleanQuery.length > 2)) {
       steps.push("Searching DevBoard database...")
       
+      const validUuids = dbInfo.userIds.filter(isValidUUID)
+      const nonUuids = dbInfo.userIds.filter((i) => !isValidUUID(i))
+
+      const buildUserQuery = (table: string) => {
+        let q = supabase.from(table).select("*").eq("is_deleted", false)
+        if (validUuids.length > 0 && nonUuids.length > 0) {
+          q = q.or(`user_id.in.(${validUuids.join(",")}),clerk_user_id.in.(${nonUuids.join(",")})`)
+        } else if (validUuids.length > 0) {
+          q = q.in("user_id", validUuids)
+        } else if (nonUuids.length > 0) {
+          q = q.in("clerk_user_id", nonUuids)
+        }
+        return q
+      }
+
       const [formulasRes, notesRes, shortcutsRes] = await Promise.all([
-        supabase.from("formulas").select("*").eq("user_id", user.id).eq("is_deleted", false),
-        supabase.from("notes").select("*").eq("user_id", user.id).eq("is_deleted", false),
-        supabase.from("shortcuts").select("*").eq("user_id", user.id).eq("is_deleted", false)
+        buildUserQuery("formulas"),
+        buildUserQuery("notes"),
+        buildUserQuery("shortcuts"),
       ])
 
       const getMatchScore = (item: any, primaryFields: string[], secondaryFields: string[]) => {

@@ -71,6 +71,25 @@ export function SettingsModals({ type, open, onOpenChange, user, onUpdate }: Set
     if (!user) return
     setIsLoading(true)
     try {
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id)
+      
+      let validUuids: string[] = []
+      let clerkUserId: string | null = null
+
+      if (isUUID) {
+        validUuids = [user.id]
+      } else {
+        clerkUserId = user.id
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("clerk_user_id", user.id)
+          .maybeSingle()
+        if (profile?.id) {
+          validUuids = [profile.id]
+        }
+      }
+
       const tables: ("formulas" | "notes" | "urls" | "todos" | "shortcuts")[] = ["formulas", "notes", "urls", "todos", "shortcuts"]
       
       const thirtyDaysAgo = new Date()
@@ -79,20 +98,38 @@ export function SettingsModals({ type, open, onOpenChange, user, onUpdate }: Set
 
       // Perform all deletions and fetches in parallel for maximum speed
       const results = await Promise.all(tables.map(async (table) => {
-        // 1. Delete expired items
-        await supabase
+        // 1. Permanently delete items older than 30 days
+        let delQuery = supabase
           .from(table)
           .delete()
-          .eq("user_id", user.id)
           .eq("is_deleted", true)
           .lt("deleted_at", expiryStr)
 
-        // 2. Fetch remaining deleted items
-        const { data, error } = await supabase
+        if (validUuids.length > 0 && clerkUserId) {
+          delQuery = delQuery.or(`user_id.in.(${validUuids.join(",")}),clerk_user_id.eq.${clerkUserId}`)
+        } else if (validUuids.length > 0) {
+          delQuery = delQuery.in("user_id", validUuids)
+        } else if (clerkUserId) {
+          delQuery = delQuery.eq("clerk_user_id", clerkUserId)
+        }
+
+        await delQuery
+
+        // 2. Fetch remaining deleted items in Recycle Bin
+        let selectQuery = supabase
           .from(table)
           .select("id, title, deleted_at")
-          .eq("user_id", user.id)
           .eq("is_deleted", true)
+
+        if (validUuids.length > 0 && clerkUserId) {
+          selectQuery = selectQuery.or(`user_id.in.(${validUuids.join(",")}),clerk_user_id.eq.${clerkUserId}`)
+        } else if (validUuids.length > 0) {
+          selectQuery = selectQuery.in("user_id", validUuids)
+        } else if (clerkUserId) {
+          selectQuery = selectQuery.eq("clerk_user_id", clerkUserId)
+        }
+
+        const { data, error } = await selectQuery
 
         if (error) {
           console.error(`Error fetching from ${table}:`, error)

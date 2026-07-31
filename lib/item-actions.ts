@@ -112,7 +112,7 @@ export async function deleteItemAction(table: string, id: string) {
 
     const supabase = createServiceRoleClient()
 
-    // Soft delete: move to Recycle Bin
+    // 1. Soft delete: move item to Recycle Bin
     const { error } = await supabase
       .from(table)
       .update({
@@ -125,6 +125,29 @@ export async function deleteItemAction(table: string, id: string) {
       console.error(`Delete ${table} error:`, error)
       return { error: error.message }
     }
+
+    // 2. Auto-delete items older than 30 days permanently
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+    const expiryStr = thirtyDaysAgo.toISOString()
+
+    const tables = ["formulas", "shortcuts", "notes", "urls", "todos"]
+    const validUuids = dbInfo.userIds.filter(isValidUUID)
+    const nonUuids = dbInfo.userIds.filter((i) => !isValidUUID(i))
+
+    Promise.all(
+      tables.map(async (t) => {
+        let cleanQuery = supabase.from(t).delete().eq("is_deleted", true).lt("deleted_at", expiryStr)
+        if (validUuids.length > 0 && nonUuids.length > 0) {
+          cleanQuery = cleanQuery.or(`user_id.in.(${validUuids.join(",")}),clerk_user_id.in.(${nonUuids.join(",")})`)
+        } else if (validUuids.length > 0) {
+          cleanQuery = cleanQuery.in("user_id", validUuids)
+        } else if (nonUuids.length > 0) {
+          cleanQuery = cleanQuery.in("clerk_user_id", nonUuids)
+        }
+        await cleanQuery
+      })
+    ).catch((err) => console.error("Auto 30-day cleanup error:", err))
 
     await logHistory({
       resourceId: id,

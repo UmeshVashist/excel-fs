@@ -157,6 +157,19 @@ export function DashboardClient({
   }, [searchParams, supabase, userId])
 
   useEffect(() => {
+    const isUserFiltering =
+      searchQuery.trim().length > 0 ||
+      searchCategory !== "all" ||
+      favoriteFilter !== "all" ||
+      sharedFilter !== "all"
+
+    if (!isUserFiltering) {
+      setSearchResults({ formulas: [], shortcuts: [], notes: [], urls: [], todos: [], sharesInfo: {} })
+      setHasSearched(false)
+      setIsLoading(false)
+      return
+    }
+
     const timer = setTimeout(() => {
       handleUpdate()
     }, 300)

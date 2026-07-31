@@ -19,6 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { mutate } from "swr"
 import { LoadingIcon } from "@/components/loading-icon"
+import { getDeletedItemsAction, restoreItemsAction, permanentlyDeleteItemsAction } from "@/lib/item-actions"
 
 interface DeletedItem {
   id: string
@@ -28,31 +29,44 @@ interface DeletedItem {
 }
 
 interface SettingsModalsProps {
-  type: "profile" | "password" | "danger" | "recycle-bin" | null
+  type: string | null
   open: boolean
   onOpenChange: (open: boolean) => void
   user: any
-  onUpdate?: () => void
+  onUpdate: () => void
 }
 
-export function SettingsModals({ type, open, onOpenChange, user, onUpdate }: SettingsModalsProps) {
-  const [username, setUsername] = useState("")
-  const [email, setEmail] = useState("")
+export function SettingsModals({
+  type,
+  open,
+  onOpenChange,
+  user,
+  onUpdate,
+}: SettingsModalsProps) {
+  const router = useRouter()
+  const supabase = createClient()
+  const [isLoading, setIsLoading] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+
+  // Profile Form State
+  const [name, setName] = useState(user?.user_metadata?.name || user?.user_metadata?.full_name || "")
+
+  // Security Form State
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+
+  // Recycle Bin State
   const [deletedItems, setDeletedItems] = useState<DeletedItem[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [isProcessing, setIsProcessing] = useState(false)
   const [binSearchQuery, setBinSearchQuery] = useState("")
 
-  const router = useRouter()
-  const supabase = createClient()
+  const [username, setUsername] = useState("")
+  const [email, setEmail] = useState("")
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   useEffect(() => {
     if (message && message.type === "success") {
@@ -68,88 +82,14 @@ export function SettingsModals({ type, open, onOpenChange, user, onUpdate }: Set
   )
 
   const fetchDeletedItems = async () => {
-    if (!user) return
     setIsLoading(true)
     try {
-      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id)
-      
-      let validUuids: string[] = []
-      let clerkUserId: string | null = null
-
-      if (isUUID) {
-        validUuids = [user.id]
-      } else {
-        clerkUserId = user.id
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("id")
-          .eq("clerk_user_id", user.id)
-          .maybeSingle()
-        if (profile?.id) {
-          validUuids = [profile.id]
-        }
+      const res = await getDeletedItemsAction()
+      if (res.data) {
+        setDeletedItems(res.data)
+      } else if (res.error) {
+        console.error("Error fetching deleted items:", res.error)
       }
-
-      const tables: ("formulas" | "notes" | "urls" | "todos" | "shortcuts")[] = ["formulas", "notes", "urls", "todos", "shortcuts"]
-      
-      const thirtyDaysAgo = new Date()
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-      const expiryStr = thirtyDaysAgo.toISOString()
-
-      // Perform all deletions and fetches in parallel for maximum speed
-      const results = await Promise.all(tables.map(async (table) => {
-        // 1. Permanently delete items older than 30 days
-        let delQuery = supabase
-          .from(table)
-          .delete()
-          .eq("is_deleted", true)
-          .lt("deleted_at", expiryStr)
-
-        if (validUuids.length > 0 && clerkUserId) {
-          delQuery = delQuery.or(`user_id.in.(${validUuids.join(",")}),clerk_user_id.eq.${clerkUserId}`)
-        } else if (validUuids.length > 0) {
-          delQuery = delQuery.in("user_id", validUuids)
-        } else if (clerkUserId) {
-          delQuery = delQuery.eq("clerk_user_id", clerkUserId)
-        }
-
-        await delQuery
-
-        // 2. Fetch remaining deleted items in Recycle Bin
-        let selectQuery = supabase
-          .from(table)
-          .select("id, title, deleted_at")
-          .eq("is_deleted", true)
-
-        if (validUuids.length > 0 && clerkUserId) {
-          selectQuery = selectQuery.or(`user_id.in.(${validUuids.join(",")}),clerk_user_id.eq.${clerkUserId}`)
-        } else if (validUuids.length > 0) {
-          selectQuery = selectQuery.in("user_id", validUuids)
-        } else if (clerkUserId) {
-          selectQuery = selectQuery.eq("clerk_user_id", clerkUserId)
-        }
-
-        const { data, error } = await selectQuery
-
-        if (error) {
-          console.error(`Error fetching from ${table}:`, error)
-          return []
-        }
-
-        return (data || []).map(item => ({
-          id: item.id,
-          type: table.slice(0, -1) as any,
-          title: item.title,
-          deleted_at: item.deleted_at
-        }))
-      }))
-
-      // Flatten and sort the results
-      const allDeleted = results.flat().sort((a, b) => 
-        new Date(b.deleted_at).getTime() - new Date(a.deleted_at).getTime()
-      )
-
-      setDeletedItems(allDeleted)
     } catch (error) {
       console.error("Error fetching deleted items:", error)
     } finally {
@@ -187,25 +127,20 @@ export function SettingsModals({ type, open, onOpenChange, user, onUpdate }: Set
     setIsProcessing(true)
     try {
       const itemsToRestore = deletedItems.filter(item => selectedIds.has(item.id))
-      
-      await Promise.all(itemsToRestore.map(async (item) => {
-        const table = item.type === "shortcut" ? "shortcuts" : `${item.type}s`
-        return supabase
-          .from(table)
-          .update({ is_deleted: false, deleted_at: null })
-          .eq("id", item.id)
-      }))
+      const res = await restoreItemsAction(itemsToRestore)
 
-      setMessage({ type: "success", text: `Restored ${selectedIds.size} items successfully!` })
-      fetchDeletedItems()
-      setSelectedIds(new Set())
-      
-      // Refresh global SWR cache for todos if any restored
-      if (itemsToRestore.some(item => item.type === "todo")) {
-        mutate(`todos-${user.id}`)
+      if (res.success) {
+        setMessage({ type: "success", text: `Restored ${selectedIds.size} items successfully!` })
+        fetchDeletedItems()
+        setSelectedIds(new Set())
+        
+        if (user?.id && itemsToRestore.some(item => item.type === "todo")) {
+          mutate(`todos-${user.id}`)
+        }
+        router.refresh()
+      } else {
+        setMessage({ type: "error", text: res.error || "Failed to restore items" })
       }
-      
-      router.refresh()
     } catch (error: any) {
       setMessage({ type: "error", text: error.message || "Failed to restore items" })
     } finally {
@@ -220,22 +155,19 @@ export function SettingsModals({ type, open, onOpenChange, user, onUpdate }: Set
     setIsProcessing(true)
     try {
       const itemsToDelete = deletedItems.filter(item => selectedIds.has(item.id))
-      
-      await Promise.all(itemsToDelete.map(async (item) => {
-        const table = item.type === "shortcut" ? "shortcuts" : `${item.type}s`
-        return supabase
-          .from(table)
-          .delete()
-          .eq("id", item.id)
-      }))
+      const res = await permanentlyDeleteItemsAction(itemsToDelete)
 
-      setMessage({ type: "success", text: `Permanently deleted ${selectedIds.size} items!` })
-      fetchDeletedItems()
-      setSelectedIds(new Set())
+      if (res.success) {
+        setMessage({ type: "success", text: `Permanently deleted ${selectedIds.size} items!` })
+        fetchDeletedItems()
+        setSelectedIds(new Set())
 
-      // Refresh global SWR cache for todos if any deleted
-      if (itemsToDelete.some(item => item.type === "todo")) {
-        mutate(`todos-${user.id}`)
+        if (user?.id && itemsToDelete.some(item => item.type === "todo")) {
+          mutate(`todos-${user.id}`)
+        }
+        router.refresh()
+      } else {
+        setMessage({ type: "error", text: res.error || "Failed to delete items" })
       }
     } catch (error: any) {
       setMessage({ type: "error", text: error.message || "Failed to delete items" })

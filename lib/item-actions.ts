@@ -165,6 +165,128 @@ export async function deleteItemAction(table: string, id: string) {
   }
 }
 
+export async function getDeletedItemsAction() {
+  try {
+    const { userId: clerkUserId } = await auth()
+    if (!clerkUserId) return { data: [], error: "Unauthorized" }
+
+    const clerkUser = await currentUser()
+    const email = clerkUser?.primaryEmailAddress?.emailAddress || null
+    const dbInfo = await getUserDbInfo(clerkUserId, email)
+
+    const supabase = createServiceRoleClient()
+
+    const tables: ("formulas" | "notes" | "urls" | "todos" | "shortcuts")[] = [
+      "formulas",
+      "notes",
+      "urls",
+      "todos",
+      "shortcuts",
+    ]
+
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+    const expiryStr = thirtyDaysAgo.toISOString()
+
+    const validUuids = dbInfo.userIds.filter(isValidUUID)
+    const nonUuids = dbInfo.userIds.filter((i) => !isValidUUID(i))
+
+    const results = await Promise.all(
+      tables.map(async (table) => {
+        // 1. Auto cleanup >30 days
+        let delQuery = supabase.from(table).delete().eq("is_deleted", true).lt("deleted_at", expiryStr)
+        if (validUuids.length > 0 && nonUuids.length > 0) {
+          delQuery = delQuery.or(`user_id.in.(${validUuids.join(",")}),clerk_user_id.in.(${nonUuids.join(",")})`)
+        } else if (validUuids.length > 0) {
+          delQuery = delQuery.in("user_id", validUuids)
+        } else if (nonUuids.length > 0) {
+          delQuery = delQuery.in("clerk_user_id", nonUuids)
+        }
+        await delQuery
+
+        // 2. Fetch deleted items
+        let selectQuery = supabase.from(table).select("id, title, deleted_at").eq("is_deleted", true)
+        if (validUuids.length > 0 && nonUuids.length > 0) {
+          selectQuery = selectQuery.or(`user_id.in.(${validUuids.join(",")}),clerk_user_id.in.(${nonUuids.join(",")})`)
+        } else if (validUuids.length > 0) {
+          selectQuery = selectQuery.in("user_id", validUuids)
+        } else if (nonUuids.length > 0) {
+          selectQuery = selectQuery.in("clerk_user_id", nonUuids)
+        }
+
+        const { data, error } = await selectQuery
+        if (error) {
+          console.error(`Error fetching deleted items from ${table}:`, error)
+          return []
+        }
+
+        return (data || []).map((item) => ({
+          id: item.id,
+          type: table.slice(0, -1) as any,
+          title: item.title,
+          deleted_at: item.deleted_at,
+        }))
+      })
+    )
+
+    const allDeleted = results
+      .flat()
+      .sort((a, b) => new Date(b.deleted_at).getTime() - new Date(a.deleted_at).getTime())
+
+    return { data: allDeleted }
+  } catch (err: any) {
+    console.error("getDeletedItemsAction error:", err)
+    return { data: [], error: err.message || "Failed to fetch deleted items" }
+  }
+}
+
+export async function restoreItemsAction(items: { id: string; type: string }[]) {
+  try {
+    const { userId: clerkUserId } = await auth()
+    if (!clerkUserId) return { error: "Unauthorized" }
+
+    const supabase = createServiceRoleClient()
+
+    await Promise.all(
+      items.map(async (item) => {
+        const table = item.type === "shortcut" ? "shortcuts" : `${item.type}s`
+        return supabase
+          .from(table)
+          .update({ is_deleted: false, deleted_at: null })
+          .eq("id", item.id)
+      })
+    )
+
+    revalidatePath("/dashboard")
+    return { success: true }
+  } catch (err: any) {
+    console.error("restoreItemsAction error:", err)
+    return { error: err.message || "Failed to restore items" }
+  }
+}
+
+export async function permanentlyDeleteItemsAction(items: { id: string; type: string }[]) {
+  try {
+    const { userId: clerkUserId } = await auth()
+    if (!clerkUserId) return { error: "Unauthorized" }
+
+    const supabase = createServiceRoleClient()
+
+    await Promise.all(
+      items.map(async (item) => {
+        const table = item.type === "shortcut" ? "shortcuts" : `${item.type}s`
+        return supabase.from(table).delete().eq("id", item.id)
+      })
+    )
+
+    revalidatePath("/dashboard")
+    return { success: true }
+  } catch (err: any) {
+    console.error("permanentlyDeleteItemsAction error:", err)
+    return { error: err.message || "Failed to permanently delete items" }
+  }
+}
+
 export async function toggleFavoriteAction(table: string, id: string, currentFavorite: boolean) {
   try {
     const { userId: clerkUserId } = await auth()

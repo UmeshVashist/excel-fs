@@ -11,7 +11,8 @@ import { createClient } from "@/lib/supabase/client"
 import { fetchItemsForUser } from "@/lib/supabase/user-helper"
 
 import { getBatchSharedWith } from "@/lib/sharing-actions"
-import { deleteItemAction, removeSharedItemAction, toggleFavoriteAction } from "@/lib/item-actions"
+import { deleteItemAction, removeSharedItemAction, toggleFavoriteAction, getItemsAction } from "@/lib/item-actions"
+
 import { ShareModal } from "@/components/share-modal"
 
 interface Note {
@@ -89,8 +90,10 @@ export function NotesClient({
   const loadNotes = async () => {
     try {
       // Fetch only owned notes
-      const { data: ownedData } = await fetchItemsForUser(supabase, "notes", targetUserIds)
-      setNotes(ownedData || [])
+      const { data: ownedData } = await getItemsAction("notes")
+      if (ownedData && ownedData.length > 0) {
+        setNotes(ownedData)
+      }
     } catch (error) {
       console.error("Error loading notes:", error)
     }

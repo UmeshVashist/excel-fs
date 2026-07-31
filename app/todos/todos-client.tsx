@@ -11,6 +11,7 @@ import useSWR from "swr"
 import { fetchItemsForUser } from "@/lib/supabase/user-helper"
 import { createClient } from "@/lib/supabase/client"
 import { SidebarProvider } from "@/components/sidebar-provider"
+import { deleteItemAction, removeSharedItemAction, toggleFavoriteAction, getItemsAction } from "@/lib/item-actions"
 import { getBatchSharedWith } from "@/lib/sharing-actions"
 import { ShareModal } from "@/components/share-modal"
 
@@ -49,47 +50,25 @@ export function TodosClient({
     `todos-${userId}`,
     async () => {
       try {
-        // Fetch only owned todos
-        const { data: ownedData, error: ownedError } = await fetchItemsForUser(supabase, "todos", targetUserIds)
+        const { data: ownedData } = await getItemsAction("todos")
+        const finalData = ownedData && ownedData.length > 0 ? ownedData : initialTodos
+        const sortedTodos = (finalData || []).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) as Todo[]
 
-        if (ownedError) {
-          console.error("Error fetching owned todos:", ownedError)
-          throw ownedError
-        }
-
-
-        const sortedTodos = (ownedData || []).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) as Todo[]
-
-        // Fetch shares info for owned todos
-        const ownedIds = (ownedData || []).map(t => t.id)
+        const ownedIds = sortedTodos.map(t => t.id)
         let sharesInfo = {}
         if (ownedIds.length > 0) {
           sharesInfo = await getBatchSharedWith(ownedIds, "todos")
         }
 
-        return {
-          todos: sortedTodos,
-          sharesInfo
-        }
-      } catch (error: any) {
-        console.error("Detailed load error:", {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code,
-          error
-        })
-        return { todos: [], sharesInfo: {} }
+        return { ownedTodos: sortedTodos, sharesInfo }
+      } catch (err) {
+        return { ownedTodos: initialTodos, sharesInfo: {} }
       }
     },
-    { 
-      fallbackData: { todos: initialTodos, sharesInfo: {} },
-      revalidateOnFocus: false, // Prevent excessive reloads on window focus
-      revalidateOnReconnect: false 
-    },
+    { fallbackData: { ownedTodos: initialTodos, sharesInfo: {} }, revalidateOnFocus: false }
   )
-
-  const { todos = EMPTY_ARRAY, sharesInfo = {} as any } = data || {}
+  const { ownedTodos = EMPTY_ARRAY, sharesInfo = {} as any } = data || {}
+  const todos = ownedTodos
 
   const [searchQuery, setSearchQuery] = useState("")
   const [favoriteFilter, setFavoriteFilter] = useState("all")

@@ -1,10 +1,11 @@
 "use server"
 
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
-import { auth } from "@clerk/nextjs/server"
-import { getUserDbInfo } from "@/lib/supabase/user-helper"
+import { auth, currentUser } from "@clerk/nextjs/server"
+import { getUserDbInfo, fetchItemsForUser } from "@/lib/supabase/user-helper"
 import { revalidatePath } from "next/cache"
 import { logHistory } from "./sharing-actions"
+
 
 export async function addItemAction(table: string, payload: any) {
   try {
@@ -190,4 +191,22 @@ export async function removeSharedItemAction(resourceId: string, resourceType: s
     return { error: err.message || "Failed to remove shared item" }
   }
 }
+
+export async function getItemsAction(table: string, extraOptions?: any) {
+  try {
+    const { userId: clerkUserId } = await auth()
+    if (!clerkUserId) return { data: [], error: "Unauthorized" }
+
+    const clerkUser = await currentUser()
+    const email = clerkUser?.primaryEmailAddress?.emailAddress || null
+    const dbInfo = await getUserDbInfo(clerkUserId, email)
+
+    const supabase = createServiceRoleClient()
+    return await fetchItemsForUser(supabase, table, dbInfo.userIds, extraOptions)
+  } catch (err: any) {
+    console.error(`getItemsAction error on ${table}:`, err)
+    return { data: [], error: err.message || "Failed to fetch items" }
+  }
+}
+
 

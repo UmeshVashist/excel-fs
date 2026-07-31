@@ -10,7 +10,8 @@ import { FormulaForm } from "@/components/formula-form"
 import { createClient } from "@/lib/supabase/client"
 import { fetchItemsForUser } from "@/lib/supabase/user-helper"
 import { getBatchSharedWith } from "@/lib/sharing-actions"
-import { deleteItemAction, removeSharedItemAction, toggleFavoriteAction } from "@/lib/item-actions"
+import { deleteItemAction, removeSharedItemAction, toggleFavoriteAction, getItemsAction } from "@/lib/item-actions"
+
 import { ShareModal } from "@/components/share-modal"
 
 interface Formula {
@@ -89,8 +90,10 @@ export function FormulasClient({
   const loadFormulas = async () => {
     try {
       // Fetch only owned formulas
-      const { data: ownedData } = await fetchItemsForUser(supabase, "formulas", targetUserIds)
-      setFormulas(ownedData || [])
+      const { data: ownedData } = await getItemsAction("formulas")
+      if (ownedData && ownedData.length > 0) {
+        setFormulas(ownedData)
+      }
     } catch (error: any) {
       if (error.code !== "PGRST205") {
         console.error("Error loading formulas:", error)

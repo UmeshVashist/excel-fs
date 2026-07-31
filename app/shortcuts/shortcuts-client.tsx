@@ -10,7 +10,8 @@ import { ShortcutForm } from "@/components/shortcut-form"
 import { createClient } from "@/lib/supabase/client"
 import { fetchItemsForUser } from "@/lib/supabase/user-helper"
 import { getBatchSharedWith } from "@/lib/sharing-actions"
-import { deleteItemAction, removeSharedItemAction, toggleFavoriteAction } from "@/lib/item-actions"
+import { deleteItemAction, removeSharedItemAction, toggleFavoriteAction, getItemsAction } from "@/lib/item-actions"
+
 import { ShareModal } from "@/components/share-modal"
 
 interface Shortcut {
@@ -86,8 +87,10 @@ export function ShortcutsClient({
   const loadShortcuts = async () => {
     try {
       // Fetch only owned shortcuts
-      const { data: ownedData } = await fetchItemsForUser(supabase, "shortcuts", targetUserIds)
-      setShortcuts(ownedData || [])
+      const { data: ownedData } = await getItemsAction("shortcuts")
+      if (ownedData && ownedData.length > 0) {
+        setShortcuts(ownedData)
+      }
     } catch (error: any) {
       if (error.code !== "PGRST205") {
         console.error("Error loading shortcuts:", error)

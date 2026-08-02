@@ -76,10 +76,22 @@ export default function SharedClient({ userId, userIds, initialItems }: SharedCl
       }
 
       // Client-side Supabase query fallback
-      const { data: sharedItems } = await supabase
+      const validUuids = targetUserIds.filter((id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))
+      const nonUuids = targetUserIds.filter((id) => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))
+
+      let fallbackQuery = supabase
         .from("shared_items")
         .select("resource_id, resource_type, permission, created_at")
-        .in("shared_with_id", targetUserIds)
+
+      if (validUuids.length > 0 && nonUuids.length > 0) {
+        fallbackQuery = fallbackQuery.or(`shared_with_id.in.(${validUuids.join(",")}),clerk_user_id.in.(${nonUuids.join(",")})`)
+      } else if (validUuids.length > 0) {
+        fallbackQuery = fallbackQuery.in("shared_with_id", validUuids)
+      } else if (nonUuids.length > 0) {
+        fallbackQuery = fallbackQuery.in("clerk_user_id", nonUuids)
+      }
+
+      const { data: sharedItems } = await fallbackQuery
 
       const results: any = { formulas: [], shortcuts: [], notes: [], urls: [], todos: [], sharesInfo: {} }
 

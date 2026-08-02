@@ -551,14 +551,25 @@ export async function getSharedItemsAction() {
     const supabase = createServiceRoleClient()
 
     const validUuids = dbInfo.userIds.filter(isValidUUID)
-    if (validUuids.length === 0) {
+    const nonUuids = dbInfo.userIds.filter((id) => !isValidUUID(id))
+
+    if (validUuids.length === 0 && nonUuids.length === 0) {
       return { data: { formulas: [], shortcuts: [], notes: [], urls: [], todos: [], sharesInfo: {} }, error: null }
     }
 
-    const { data: sharedItems, error: sharedError } = await supabase
+    let sharedQuery = supabase
       .from("shared_items")
       .select("resource_id, resource_type, permission, created_at")
-      .in("shared_with_id", validUuids)
+
+    if (validUuids.length > 0 && nonUuids.length > 0) {
+      sharedQuery = sharedQuery.or(`shared_with_id.in.(${validUuids.join(",")}),clerk_user_id.in.(${nonUuids.join(",")})`)
+    } else if (validUuids.length > 0) {
+      sharedQuery = sharedQuery.in("shared_with_id", validUuids)
+    } else if (nonUuids.length > 0) {
+      sharedQuery = sharedQuery.in("clerk_user_id", nonUuids)
+    }
+
+    const { data: sharedItems, error: sharedError } = await sharedQuery
 
     if (sharedError) {
       console.error("getSharedItemsAction error:", sharedError)

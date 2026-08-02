@@ -5,36 +5,25 @@ const serviceKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSI
 
 const supabase = createClient(supabaseUrl, serviceKey)
 
-async function fixSharedItemsClerkId() {
-  console.log("=== CHECKING SHARED ITEMS WITH NULL CLERK_USER_ID ===")
-  const { data: shares, error } = await supabase.from("shared_items").select("*")
-  console.log("All shared items:", shares, error || "")
+async function testInvalidUuidQuery() {
+  const mixedIds = ['user_3FxJM7P318YR7fpLom9VufrsUh9', '2b9a0c8b-0970-48e2-811a-ddc4707638d0']
 
-  const { data: profiles } = await supabase.from("profiles").select("id, clerk_user_id")
-  const profileMap = new Map((profiles || []).map((p) => [p.id, p.clerk_user_id]))
+  console.log("--- Testing .in('shared_with_id', mixedIds) ---")
+  const { data: d1, error: e1 } = await supabase
+    .from("shared_items")
+    .select("resource_id")
+    .in("shared_with_id", mixedIds)
 
-  if (shares && shares.length > 0) {
-    for (const share of shares) {
-      const ownerClerkId = profileMap.get(share.owner_id)
-      if (ownerClerkId) {
-        console.log(`Updating share ${share.id} with clerk_user_id: ${ownerClerkId}`)
-        const { error: updateErr } = await supabase
-          .from("shared_items")
-          .update({ clerk_user_id: ownerClerkId })
-          .eq("id", share.id)
-        
-        if (updateErr) {
-          console.error("Update error:", updateErr)
-        } else {
-          console.log("Successfully updated!")
-        }
-      }
-    }
-  }
+  console.log("Result 1 (mixedIds):", d1, e1)
 
-  const { data: updatedShares } = await supabase.from("shared_items").select("*")
-  console.log("=== UPDATED SHARED ITEMS ===")
-  console.log(JSON.stringify(updatedShares, null, 2))
+  const validUuids = mixedIds.filter(id => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))
+  console.log("\n--- Testing .in('shared_with_id', validUuids) ---")
+  const { data: d2, error: e2 } = await supabase
+    .from("shared_items")
+    .select("resource_id")
+    .in("shared_with_id", validUuids)
+
+  console.log("Result 2 (validUuids):", d2, e2)
 }
 
-fixSharedItemsClerkId()
+testInvalidUuidQuery()

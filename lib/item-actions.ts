@@ -539,9 +539,19 @@ export async function getDashboardItemsAction(params: {
   }
 }
 
-export async function getSharedItemsAction() {
+export async function getSharedItemsAction(overrideClerkUserId?: string) {
   try {
-    const { userId: clerkUserId } = await auth()
+    let clerkUserId = overrideClerkUserId
+    if (!clerkUserId) {
+      const authObj = await auth()
+      clerkUserId = authObj?.userId || undefined
+    }
+
+    if (!clerkUserId) {
+      const clerkUser = await currentUser()
+      clerkUserId = clerkUser?.id || undefined
+    }
+
     if (!clerkUserId) return { data: null, error: "Unauthorized" }
 
     const clerkUser = await currentUser()

@@ -23,6 +23,7 @@ import { TodoForm } from "@/components/todo-form"
 
 interface SharedClientProps {
   userId: string
+  clerkUserId?: string
   userIds?: string[]
   initialItems?: {
     formulas: any[]
@@ -34,7 +35,7 @@ interface SharedClientProps {
   }
 }
 
-export default function SharedClient({ userId, userIds, initialItems }: SharedClientProps) {
+export default function SharedClient({ userId, clerkUserId, userIds, initialItems }: SharedClientProps) {
   const supabase = useMemo(() => createClient(), [])
   const [searchQuery, setSearchQuery] = useState("")
   const [category, setCategory] = useState("all")
@@ -55,22 +56,15 @@ export default function SharedClient({ userId, userIds, initialItems }: SharedCl
 
   const targetUserIds = useMemo(() => {
     const list = userIds && userIds.length > 0 ? userIds : [userId]
+    if (clerkUserId && !list.includes(clerkUserId)) list.push(clerkUserId)
     return Array.from(new Set(list.filter(Boolean)))
-  }, [userId, userIds])
+  }, [userId, clerkUserId, userIds])
 
   const loadSharedItems = useCallback(async () => {
     setIsLoading(true)
     try {
-      const res = await getSharedItemsAction()
-      if (
-        res &&
-        res.data &&
-        (res.data.formulas?.length > 0 ||
-          res.data.shortcuts?.length > 0 ||
-          res.data.notes?.length > 0 ||
-          res.data.urls?.length > 0 ||
-          res.data.todos?.length > 0)
-      ) {
+      const res = await getSharedItemsAction(clerkUserId)
+      if (res && res.data) {
         setItems(res.data)
         return
       }
@@ -140,7 +134,7 @@ export default function SharedClient({ userId, userIds, initialItems }: SharedCl
     } finally {
       setIsLoading(false)
     }
-  }, [supabase, targetUserIds])
+  }, [supabase, targetUserIds, clerkUserId])
 
   useEffect(() => {
     loadSharedItems()

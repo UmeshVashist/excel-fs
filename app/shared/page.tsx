@@ -14,11 +14,12 @@ export default async function SharedPage() {
 
   const email = clerkUser?.primaryEmailAddress?.emailAddress || null
   const dbInfo = await getUserDbInfo(userId, email)
-  const sharedRes = await getSharedItemsAction()
+  const sharedRes = await getSharedItemsAction(userId)
 
   return (
     <SharedClient
       userId={dbInfo.uuid}
+      clerkUserId={userId}
       userIds={dbInfo.userIds}
       initialItems={sharedRes.data || { formulas: [], shortcuts: [], notes: [], urls: [], todos: [], sharesInfo: {} }}
     />

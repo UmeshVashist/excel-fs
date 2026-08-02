@@ -62,57 +62,67 @@ export default function SharedClient({ userId, userIds, initialItems }: SharedCl
     setIsLoading(true)
     try {
       const res = await getSharedItemsAction()
-      if (res.data) {
+      if (
+        res &&
+        res.data &&
+        (res.data.formulas?.length > 0 ||
+          res.data.shortcuts?.length > 0 ||
+          res.data.notes?.length > 0 ||
+          res.data.urls?.length > 0 ||
+          res.data.todos?.length > 0)
+      ) {
         setItems(res.data)
-      } else {
-        const { data: sharedItems } = await supabase
-          .from("shared_items")
-          .select("resource_id, resource_type, permission, created_at")
-          .in("shared_with_id", targetUserIds)
+        return
+      }
 
-        const results: any = { formulas: [], shortcuts: [], notes: [], urls: [], todos: [], sharesInfo: {} }
+      // Client-side Supabase query fallback
+      const { data: sharedItems } = await supabase
+        .from("shared_items")
+        .select("resource_id, resource_type, permission, created_at")
+        .in("shared_with_id", targetUserIds)
 
-        if (sharedItems && sharedItems.length > 0) {
-          const fetchDetails = async (type: string, table: string) => {
-            const typeShares = sharedItems.filter((s) => s.resource_type === type)
-            if (typeShares.length === 0) return []
+      const results: any = { formulas: [], shortcuts: [], notes: [], urls: [], todos: [], sharesInfo: {} }
 
-            const ids = typeShares.map((s) => s.resource_id)
-            const { data } = await supabase
-              .from(table)
-              .select("*")
-              .in("id", ids)
-              .neq("is_deleted", true)
+      if (sharedItems && sharedItems.length > 0) {
+        const fetchDetails = async (type: string, table: string) => {
+          const typeShares = sharedItems.filter((s) => s.resource_type === type)
+          if (typeShares.length === 0) return []
 
-            return (data || []).map((item) => ({
-              ...item,
-              shared_permission: typeShares.find((s) => s.resource_id === item.id)?.permission,
-              received_at: typeShares.find((s) => s.resource_id === item.id)?.created_at,
-            }))
-          }
+          const ids = typeShares.map((s) => s.resource_id)
+          const { data } = await supabase
+            .from(table)
+            .select("*")
+            .in("id", ids)
+            .neq("is_deleted", true)
 
-          const [formulas, shortcuts, notes, urls, todos] = await Promise.all([
-            fetchDetails("formulas", "formulas"),
-            fetchDetails("shortcuts", "shortcuts"),
-            fetchDetails("notes", "notes"),
-            fetchDetails("urls", "urls"),
-            fetchDetails("todos", "todos"),
-          ])
-
-          results.formulas = formulas
-          results.shortcuts = shortcuts
-          results.notes = notes
-          results.urls = urls
-          results.todos = todos
-
-          const todoIds = todos.map((t: any) => t.id)
-          if (todoIds.length > 0) {
-            results.sharesInfo = await getBatchSharedWith(todoIds, "todos")
-          }
+          return (data || []).map((item) => ({
+            ...item,
+            shared_permission: typeShares.find((s) => s.resource_id === item.id)?.permission,
+            received_at: typeShares.find((s) => s.resource_id === item.id)?.created_at,
+          }))
         }
 
-        setItems(results)
+        const [formulas, shortcuts, notes, urls, todos] = await Promise.all([
+          fetchDetails("formulas", "formulas"),
+          fetchDetails("shortcuts", "shortcuts"),
+          fetchDetails("notes", "notes"),
+          fetchDetails("urls", "urls"),
+          fetchDetails("todos", "todos"),
+        ])
+
+        results.formulas = formulas
+        results.shortcuts = shortcuts
+        results.notes = notes
+        results.urls = urls
+        results.todos = todos
+
+        const todoIds = todos.map((t: any) => t.id)
+        if (todoIds.length > 0) {
+          results.sharesInfo = await getBatchSharedWith(todoIds, "todos")
+        }
       }
+
+      setItems(results)
     } catch (error: any) {
       console.error("Error loading shared items:", error)
     } finally {
@@ -121,10 +131,8 @@ export default function SharedClient({ userId, userIds, initialItems }: SharedCl
   }, [supabase, targetUserIds])
 
   useEffect(() => {
-    if (!initialItems) {
-      loadSharedItems()
-    }
-  }, [loadSharedItems, initialItems])
+    loadSharedItems()
+  }, [loadSharedItems])
 
   const filterItems = (list: any[] = []) => {
     let result = list.filter((item) =>

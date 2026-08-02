@@ -539,5 +539,80 @@ export async function getDashboardItemsAction(params: {
   }
 }
 
+export async function getSharedItemsAction() {
+  try {
+    const { userId: clerkUserId } = await auth()
+    if (!clerkUserId) return { data: null, error: "Unauthorized" }
+
+    const clerkUser = await currentUser()
+    const email = clerkUser?.primaryEmailAddress?.emailAddress || null
+    const dbInfo = await getUserDbInfo(clerkUserId, email)
+
+    const supabase = createServiceRoleClient()
+
+    const validUuids = dbInfo.userIds.filter(isValidUUID)
+    if (validUuids.length === 0) {
+      return { data: { formulas: [], shortcuts: [], notes: [], urls: [], todos: [], sharesInfo: {} }, error: null }
+    }
+
+    const { data: sharedItems, error: sharedError } = await supabase
+      .from("shared_items")
+      .select("resource_id, resource_type, permission, created_at")
+      .in("shared_with_id", validUuids)
+
+    if (sharedError) {
+      console.error("getSharedItemsAction error:", sharedError)
+      return { data: null, error: sharedError.message }
+    }
+
+    const results: any = { formulas: [], shortcuts: [], notes: [], urls: [], todos: [], sharesInfo: {} }
+
+    if (sharedItems && sharedItems.length > 0) {
+      const fetchDetails = async (type: string, table: string) => {
+        const typeShares = sharedItems.filter((s) => s.resource_type === type)
+        if (typeShares.length === 0) return []
+
+        const ids = typeShares.map((s) => s.resource_id)
+        const { data } = await supabase
+          .from(table)
+          .select("*")
+          .in("id", ids)
+          .neq("is_deleted", true)
+
+        return (data || []).map((item) => ({
+          ...item,
+          shared_permission: typeShares.find((s) => s.resource_id === item.id)?.permission,
+          received_at: typeShares.find((s) => s.resource_id === item.id)?.created_at,
+        }))
+      }
+
+      const [formulas, shortcuts, notes, urls, todos] = await Promise.all([
+        fetchDetails("formulas", "formulas"),
+        fetchDetails("shortcuts", "shortcuts"),
+        fetchDetails("notes", "notes"),
+        fetchDetails("urls", "urls"),
+        fetchDetails("todos", "todos"),
+      ])
+
+      results.formulas = formulas
+      results.shortcuts = shortcuts
+      results.notes = notes
+      results.urls = urls
+      results.todos = todos
+
+      const todoIds = todos.map((t: any) => t.id)
+      if (todoIds.length > 0) {
+        results.sharesInfo = await getBatchSharedWith(todoIds, "todos")
+      }
+    }
+
+    return { data: results, error: null }
+  } catch (err: any) {
+    console.error("getSharedItemsAction exception:", err)
+    return { data: null, error: err.message || "Failed to fetch shared items" }
+  }
+}
+
+
 
 

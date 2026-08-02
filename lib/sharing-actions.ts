@@ -30,7 +30,14 @@ export async function shareItem(params: {
   userIds: string[]
   permission: "view" | "edit"
 }) {
+  const { userId: clerkUserId } = await auth()
   const supabase = createServiceRoleClient()
+
+  let activeClerkUserId = clerkUserId
+  if (!activeClerkUserId && params.ownerId) {
+    const { data: profile } = await supabase.from("profiles").select("clerk_user_id").eq("id", params.ownerId).single()
+    activeClerkUserId = profile?.clerk_user_id || null
+  }
 
   const shares = params.userIds.map((userId) => ({
     owner_id: params.ownerId,
@@ -38,6 +45,7 @@ export async function shareItem(params: {
     resource_id: params.resourceId,
     resource_type: params.resourceType,
     permission: params.permission,
+    clerk_user_id: activeClerkUserId || null,
   }))
 
   const { error } = await supabase

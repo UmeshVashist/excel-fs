@@ -5,50 +5,36 @@ const serviceKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSI
 
 const supabase = createClient(supabaseUrl, serviceKey)
 
-function isValidUUID(val) {
-  if (!val) return false
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)
-}
+async function fixSharedItemsClerkId() {
+  console.log("=== CHECKING SHARED ITEMS WITH NULL CLERK_USER_ID ===")
+  const { data: shares, error } = await supabase.from("shared_items").select("*")
+  console.log("All shared items:", shares, error || "")
 
-async function testUserDbInfo(clerkUserId, email) {
-  let { data: profilesByClerk } = await supabase
-    .from("profiles")
-    .select("id, clerk_user_id, email")
-    .eq("clerk_user_id", clerkUserId)
+  const { data: profiles } = await supabase.from("profiles").select("id, clerk_user_id")
+  const profileMap = new Map((profiles || []).map((p) => [p.id, p.clerk_user_id]))
 
-  let matchingProfile = profilesByClerk?.[0]
-
-  if (!matchingProfile && email) {
-    const { data: profilesByEmail } = await supabase
-      .from("profiles")
-      .select("id, clerk_user_id, email")
-      .eq("email", email)
-
-    matchingProfile = profilesByEmail?.[0]
+  if (shares && shares.length > 0) {
+    for (const share of shares) {
+      const ownerClerkId = profileMap.get(share.owner_id)
+      if (ownerClerkId) {
+        console.log(`Updating share ${share.id} with clerk_user_id: ${ownerClerkId}`)
+        const { error: updateErr } = await supabase
+          .from("shared_items")
+          .update({ clerk_user_id: ownerClerkId })
+          .eq("id", share.id)
+        
+        if (updateErr) {
+          console.error("Update error:", updateErr)
+        } else {
+          console.log("Successfully updated!")
+        }
+      }
+    }
   }
 
-  const profileUuid = matchingProfile?.id || (isValidUUID(clerkUserId) ? clerkUserId : "mock-uuid")
-  const userIds = Array.from(new Set([clerkUserId, profileUuid].filter(Boolean)))
-  const validUuids = userIds.filter(isValidUUID)
-
-  console.log("clerkUserId:", clerkUserId)
-  console.log("profileUuid:", profileUuid)
-  console.log("userIds:", userIds)
-  console.log("validUuids:", validUuids)
-
-  const { data: sharedItems, error: sharedError } = await supabase
-    .from("shared_items")
-    .select("resource_id, resource_type, permission, created_at, owner_id")
-    .in("shared_with_id", validUuids)
-
-  console.log("Query .in('shared_with_id', validUuids) result:", sharedItems, sharedError || "")
-
-  const { data: sharedItemsAll } = await supabase
-    .from("shared_items")
-    .select("resource_id, resource_type, permission, created_at, owner_id")
-    .or(`shared_with_id.in.(${validUuids.join(",")}),clerk_user_id.in.(${userIds.filter(id => !isValidUUID(id)).join(",")})`)
-
-  console.log("Query with OR (clerk_user_id) result:", sharedItemsAll)
+  const { data: updatedShares } = await supabase.from("shared_items").select("*")
+  console.log("=== UPDATED SHARED ITEMS ===")
+  console.log(JSON.stringify(updatedShares, null, 2))
 }
 
-testUserDbInfo("user_3FxJM7P318YR7fpLom9VufrsUh9", "us781819@gmail.com")
+fixSharedItemsClerkId()
